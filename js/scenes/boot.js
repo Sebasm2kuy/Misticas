@@ -95,44 +95,47 @@
       },
 
       draw: function (ctx) {
-        var y = 24;
+        var W = M.SCREEN_W, H = M.SCREEN_H;
+        var cx = Math.round(W / 2);
+        function y(v) { return Math.round(v * H / 200); }
+        var yy = y(24);
         if (this.phase >= 1) {
           for (var i = 0; i < BOOT_LINES.length; i++) {
             if (i > this.li) break;
             var shown = (i < this.li) ? BOOT_LINES[i] : BOOT_LINES[i].substring(0, Math.floor(this.ci));
-            if (shown) F.draw(ctx, shown, 22, y + i * 12, M.C.BONE);
+            if (shown) F.draw(ctx, shown, 22, yy + i * 12, M.C.BONE);
           }
         }
         if (this.phase === 0) {
           if (Math.sin(this.t * 4) > -0.3) {
-            F.drawCentered(ctx, 'PULSA UNA TECLA O HAZ CLIC', 160, 96, M.C.LMAG);
+            F.drawCentered(ctx, 'PULSA UNA TECLA O HAZ CLIC', cx, y(96), M.C.LMAG);
           }
-          F.drawCentered(ctx, 'MISTICAS (C) ' + M.YEAR, 160, 150, M.C.DARK, {});
-          F.drawCentered(ctx, 'ESTE PROGRAMA CONTIENE LUZ INTERMITENTE', 160, 164, M.C.VDARK === 1 ? M.C.BONE2 : M.C.BONE2);
+          F.drawCentered(ctx, 'MISTICAS (C) ' + M.YEAR, cx, y(150), M.C.DARK, {});
+          F.drawCentered(ctx, 'ESTE PROGRAMA CONTIENE LUZ INTERMITENTE', cx, y(164), M.C.VDARK === 1 ? M.C.BONE2 : M.C.BONE2);
         }
         if (this.phase === 2) {
           if (Math.sin(this.t * 6) > -0.2) {
-            F.drawCentered(ctx, 'PULSA PLAY EN LA CINTA', 160, 96, M.C.LORAN);
+            F.drawCentered(ctx, 'PULSA PLAY EN LA CINTA', cx, y(96), M.C.LORAN);
           }
         }
         if (this.phase === 3) {
-          F.drawCentered(ctx, 'CARGANDO MISTICAS...', 160, 88, M.C.BONE);
-          F.drawCentered(ctx, 'NO APAGUES EL EQUIPO', 160, 102, M.C.BONE2);
+          F.drawCentered(ctx, 'CARGANDO MISTICAS...', cx, y(88), M.C.BONE);
+          F.drawCentered(ctx, 'NO APAGUES EL EQUIPO', cx, y(102), M.C.BONE2);
           // bloques de progreso
           var n = 18, bw = 8, total = n * (bw + 2);
-          var x0 = 160 - total / 2;
+          var x0 = cx - total / 2;
           var filled = Math.floor((this.loadT / this.loadDur) * n);
           for (var b = 0; b < n; b++) {
             if (b < filled) {
               ctx.fillStyle = M.PAL[(b % 2) ? M.C.LMAG : M.C.MAG];
-              ctx.fillRect(x0 + b * (bw + 2), 132, bw, 9);
+              ctx.fillRect(x0 + b * (bw + 2), y(132), bw, 9);
             } else {
               ctx.strokeStyle = M.PAL[M.C.DARK];
-              ctx.strokeRect(x0 + b * (bw + 2) + 0.5, 132.5, bw - 1, 8);
+              ctx.strokeRect(x0 + b * (bw + 2) + 0.5, y(132) + 0.5, bw - 1, 8);
             }
           }
           // porcentaje
-          F.drawCentered(ctx, Math.floor((this.loadT / this.loadDur) * 100) + '%', 160, 150, M.C.BONE2);
+          F.drawCentered(ctx, Math.floor((this.loadT / this.loadDur) * 100) + '%', cx, y(150), M.C.BONE2);
           M.FX.drawTape(ctx, this.t);
         }
       }

@@ -1,7 +1,8 @@
 /* ============================================================
    MÍSTICAS — (C) 1987 — Hoja de estilos del "monitor CRT"
-   Simulación de tubo: scanlines, rejilla, viñeta, parpadeo,
-   barra de refresco y bisel fosforescente morado.
+   PANTALLA COMPLETA REAL: el tubo ocupa el 100% de la ventana
+   (sin cajita, sin marco) y solo se le suman las capas del
+   fósforo: scanlines, rejilla, viñeta, refresco y parpadeo.
    ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -12,26 +13,23 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
   touch-action: none;
+  overscroll-behavior: none;
 }
 
 body {
+  background: #000;
+}
+
+/* ---- Tubo CRT a sangre completa ---- */
+#crt {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #030005;
-}
-
-/* ---- Tubo CRT ---- */
-#crt {
-  position: relative;
   background: #000;
   overflow: hidden;
-  border-radius: 14px;
-  box-shadow:
-    0 0 34px rgba(93, 31, 158, .30),
-    0 0 90px rgba(40, 8, 74, .55),
-    0 0 160px rgba(0, 0, 0, .95),
-    inset 0 0 48px rgba(21, 10, 32, .85);
+  border-radius: 0;
 }
 
 canvas#game {
@@ -41,7 +39,7 @@ canvas#game {
   image-rendering: crisp-edges;
 }
 
-/* ---- Capas del monitor ---- */
+/* ---- Capas del monitor (cubren toda la pantalla) ---- */
 #scan {
   position: absolute; inset: 0; z-index: 3; pointer-events: none;
   background: repeating-linear-gradient(
@@ -54,22 +52,22 @@ canvas#game {
 }
 
 #grille {
-  position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .55;
+  position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .5;
   background: repeating-linear-gradient(
     to right,
-    rgba(255, 46, 94, .035) 0px,
-    rgba(244, 98, 210, .02) 1px,
-    rgba(142, 74, 216, .035) 2px,
-    rgba(142, 74, 216, .035) 3px
+    rgba(255, 46, 94, .03) 0px,
+    rgba(244, 98, 210, .018) 1px,
+    rgba(142, 74, 216, .03) 2px,
+    rgba(142, 74, 216, .03) 3px
   );
 }
 
 #vig {
   position: absolute; inset: 0; z-index: 5; pointer-events: none;
   background: radial-gradient(ellipse at center,
-    rgba(0, 0, 0, 0) 62%,
-    rgba(5, 0, 10, .10) 84%,
-    rgba(0, 0, 0, .26) 100%);
+    rgba(0, 0, 0, 0) 64%,
+    rgba(5, 0, 10, .12) 86%,
+    rgba(0, 0, 0, .34) 100%);
 }
 
 /* Barra de refresco vertical que desciende lentamente */
@@ -101,6 +99,9 @@ canvas#game {
 }
 
 /* ---- Controles táctiles ----
+   Anclados a los bordes de la pantalla (con márgenes seguros
+   para móviles con muesca), limpios y translúcidos para no
+   tapar el juego a pantalla completa.
    Se muestran: en dispositivos táctiles (pointer: coarse),
    tras el primer toque, o cuando el juego está en pausa. */
 #touch {
@@ -113,31 +114,33 @@ body.touch #touch { display: block; }
 }
 
 .tbtn {
-  position: absolute; width: 42px; height: 42px;
+  position: absolute; width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
   border: 1px solid #7a1fd0;
-  border-radius: 8px;
-  background: rgba(46, 18, 72, .55);
+  border-radius: 10px;
+  background: rgba(46, 18, 72, .45);
   color: #ffa8a0;
   font-family: monospace;
-  font-size: 15px;
+  font-size: 16px;
   pointer-events: auto;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
   text-shadow: 0 0 6px rgba(255, 74, 42, .65);
+  backdrop-filter: blur(1px);
 }
 .tbtn:active, .tbtn.held {
   background: rgba(122, 31, 208, .55);
   color: #fff3ea;
 }
 
-/* Botones de sistema: PAUSA y AUDIO (siempre visibles, arriba) */
+/* Botones de sistema: PAUSA y AUDIO, esquina superior derecha,
+   siempre accesibles y sin estorbar la vista */
 .tbtn.tsys {
-  width: 44px; height: 40px;
+  width: 46px; height: 40px;
   font-size: 17px; font-weight: bold;
   letter-spacing: 1px;
   border-color: #e8281e;
-  background: rgba(23, 11, 38, .72);
+  background: rgba(23, 11, 38, .66);
   color: #ffa8a0;
   text-shadow: 0 0 7px rgba(232, 40, 30, .8);
 }
@@ -145,8 +148,63 @@ body.touch #touch { display: block; }
   background: rgba(232, 40, 30, .45);
   color: #fff3ea;
 }
+/* audio silenciado: el botón se apaga y se tacha */
+.tbtn.tsys.muted {
+  color: #5a4470;
+  text-shadow: none;
+  border-color: #5a15a0;
+  background: rgba(10, 4, 18, .66);
+}
+.tbtn.tsys.muted::after {
+  content: '';
+  position: absolute;
+  left: 8px; right: 8px; top: 50%;
+  height: 2px; margin-top: -1px;
+  background: #e8281e;
+  transform: rotate(-24deg);
+}
 
-/* Aviso para pantallas muy estrechas: conserva proporción 16:10 */
-@media (max-width: 359px), (max-height: 229px) {
-  #crt { border-radius: 6px; }
+/* Posiciones con márgenes seguros (móviles con notch) */
+#t-pause {
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: calc(10px + env(safe-area-inset-right, 0px));
+}
+#t-audio {
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: calc(62px + env(safe-area-inset-right, 0px));
+}
+
+/* Cruceta inferior izquierda */
+#t-up {
+  left: calc(48px + env(safe-area-inset-left, 0px));
+  bottom: calc(98px + env(safe-area-inset-bottom, 0px));
+}
+#t-left {
+  left: calc(6px + env(safe-area-inset-left, 0px));
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+#t-right {
+  left: calc(90px + env(safe-area-inset-left, 0px));
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+#t-down {
+  left: calc(48px + env(safe-area-inset-left, 0px));
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Botón de acción inferior derecha */
+#t-fire {
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  width: 58px; height: 58px;
+  font-size: 20px;
+}
+
+/* Botones algo mayores en pantallas pequeñas */
+@media (max-width: 420px) {
+  .tbtn { width: 48px; height: 48px; }
+  #t-left { left: calc(6px + env(safe-area-inset-left, 0px)); }
+  #t-right { left: calc(96px + env(safe-area-inset-left, 0px)); }
+  #t-up { left: calc(51px + env(safe-area-inset-left, 0px)); }
+  #t-down { left: calc(51px + env(safe-area-inset-left, 0px)); }
 }

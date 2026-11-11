@@ -7,15 +7,14 @@
    ============================================================ */
 (function (M) {
 
-  var W = M.SCREEN_W, H = M.SCREEN_H;
-
-  // estrellas deterministas
+  // estrellas deterministas (posiciones fraccionales: se adaptan a
+  // cualquier anchura de lienzo en pantalla completa)
   var STARS = [];
   (function () {
     var s = 1987;
     function rnd() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
-    for (var i = 0; i < 42; i++) {
-      STARS.push({ x: Math.floor(rnd() * W), y: Math.floor(rnd() * 90), b: rnd() });
+    for (var i = 0; i < 48; i++) {
+      STARS.push({ fx: rnd(), y: Math.floor(rnd() * 90), b: rnd() });
     }
   })();
 
@@ -119,6 +118,7 @@
     /* ---------- cielo nocturno con bandas (solo exteriores) ---------- */
     drawSky: function (ctx, horizon, t, opts) {
       opts = opts || {};
+      var W = M.SCREEN_W;
       var x, y, i;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, 0, W, horizon);
@@ -149,7 +149,7 @@
         var tw = Math.sin(t * (0.6 + st.b) + i * 2.7) > 0.2;
         if (!tw) continue;
         ctx.fillStyle = M.PAL[st.b > 0.75 ? M.C.WHITE : M.C.BONE];
-        ctx.fillRect(st.x, st.y, 1, 1);
+        ctx.fillRect(Math.floor(st.fx * W), st.y, 1, 1);
       }
       // luna
       if (opts.moon !== false) {
@@ -181,7 +181,8 @@
     /* ---------- ruido estático ---------- */
     drawStatic: function (ctx, amount) {
       if (amount <= 0) return;
-      var n = Math.floor(amount * 240);
+      var W = M.SCREEN_W;
+      var n = Math.floor(amount * Math.max(240, (W * M.VIEW_H) / 260));
       for (var i = 0; i < n; i++) {
         var c = Math.random();
         ctx.fillStyle = M.PAL[c > 0.7 ? M.C.LMAG : (c > 0.4 ? M.C.PURP : M.C.BONE2)];
@@ -193,6 +194,7 @@
 
     /* ---------- bandas de carga de casete (bordes) ---------- */
     drawTape: function (ctx, t) {
+      var W = M.SCREEN_W, H = M.SCREEN_H;
       var cols = [M.C.MAG, M.C.LMAG, M.C.CRIM, M.C.LPURP, M.C.LCRIM, M.C.PURP];
       var bw = 16, bt = 12;
       var i, y, c1, c2;
@@ -219,6 +221,7 @@
 
     /* ---------- capa final: glitch, flash, cine, fundido ---------- */
     drawOver: function (ctx, canvas) {
+      var W = M.SCREEN_W, H = M.SCREEN_H;
       var i;
       // barras de cine
       if (this.letterbox > 0.01) {

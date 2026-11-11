@@ -12,7 +12,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#000000">
   <title>MÍSTICAS (1987) — El juego maldito</title>
   <meta name="description" content="Versión jugable retro de Místicas, la ficción sonora de Manuel Bartual y Carmen Pacheco. Un título de culto de 1987 que nunca debió existir.">
@@ -28,17 +28,18 @@
     <div id="flick"></div>
   </div>
 
-  <!-- Controles táctiles (visibles en pantallas táctiles y tras el primer toque) -->
+  <!-- Controles táctiles (visibles en pantallas táctiles y tras el primer toque):
+       anclados a los bordes, con márgenes seguros, sin estorbar la vista -->
   <div id="touch">
     <!-- Botones de sistema: pausa y audio, siempre accesibles -->
-    <div class="tbtn tsys" data-k="pause" id="t-pause" role="button" aria-label="Pausa" style="right:14px; top:10px;">II</div>
-    <div class="tbtn tsys" data-k="mute"  id="t-audio" role="button" aria-label="Silenciar audio" style="right:66px; top:10px;">&#9834;</div>
+    <div class="tbtn tsys" data-k="pause" id="t-pause" role="button" aria-label="Pausa">II</div>
+    <div class="tbtn tsys" data-k="mute"  id="t-audio" role="button" aria-label="Silenciar audio">&#9834;</div>
     <!-- Cruceta de movimiento y acción -->
-    <div class="tbtn" data-k="up"    id="t-up"    aria-label="Arriba"    style="left:46px;  bottom:96px;">&#9650;</div>
-    <div class="tbtn" data-k="left"  id="t-left"  aria-label="Izquierda" style="left:4px;   bottom:54px;">&#9664;</div>
-    <div class="tbtn" data-k="right" id="t-right" aria-label="Derecha"   style="left:88px;  bottom:54px;">&#9654;</div>
-    <div class="tbtn" data-k="down"  id="t-down"  aria-label="Abajo"     style="left:46px;  bottom:12px;">&#9660;</div>
-    <div class="tbtn" data-k="fire"  id="t-fire"  aria-label="Acción"    style="right:14px; bottom:38px; width:56px; height:56px;">&#9679;</div>
+    <div class="tbtn" data-k="up"    id="t-up"    aria-label="Arriba">&#9650;</div>
+    <div class="tbtn" data-k="left"  id="t-left"  aria-label="Izquierda">&#9664;</div>
+    <div class="tbtn" data-k="right" id="t-right" aria-label="Derecha">&#9654;</div>
+    <div class="tbtn" data-k="down"  id="t-down"  aria-label="Abajo">&#9660;</div>
+    <div class="tbtn" data-k="fire"  id="t-fire"  aria-label="Acción">&#9679;</div>
   </div>
 
   <!-- Orden de carga: núcleo primero, escenas al final -->

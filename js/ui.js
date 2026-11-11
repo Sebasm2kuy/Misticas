@@ -7,7 +7,6 @@
    ============================================================ */
 (function (M) {
 
-  var W = M.SCREEN_W;
   var F = null; // M.Font
 
   var UI = {
@@ -80,6 +79,7 @@
     drawDialog: function (ctx, t) {
       var d = this.dialog;
       if (!d) return;
+      var W = M.SCREEN_W;
       var bx = 4, by = M.VIEW_H - 42, bw = W - 8, bh = 38;
       ctx.globalAlpha = 0.94;
       ctx.fillStyle = M.PAL[M.C.VDARK];
@@ -124,6 +124,7 @@
     drawCard: function (ctx) {
       var c = this.card;
       if (!c) return;
+      var W = M.SCREEN_W;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, 0, W, M.SCREEN_H);
       F.drawCentered(ctx, c.title, W / 2, 76, M.C.BONE, { scale: 2, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, spacing: 2 });
@@ -147,6 +148,7 @@
     drawHint: function (ctx, t) {
       var h = this.hint;
       if (!h) return;
+      var W = M.SCREEN_W;
       var a = h.t < 0.3 ? h.t / 0.3 : (h.t > h.dur - 0.6 ? (h.dur - h.t) / 0.6 : 1);
       ctx.globalAlpha = a * (0.75 + Math.sin(t * 4) * 0.15);
       F.drawCentered(ctx, h.text, W / 2, M.VIEW_H - 50, M.C.BONE2);
@@ -159,6 +161,7 @@
        exterior, línea carmesí interior) y barra de progreso salmón.
        Derecha: 3 slots con borde morado y el número debajo. */
     drawHUD: function (ctx, game, t) {
+      var W = M.SCREEN_W;
       var y0 = M.SCREEN_H - M.HUD_H;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, y0, W, M.HUD_H);
@@ -188,8 +191,8 @@
         }
       }
 
-      // -- marco central NEXUS CUM NUMINE (doble borde) --
-      var bw = 152, bx = 105, by = y0 + 3, bh = 30;
+      // -- marco central NEXUS CUM NUMINE (doble borde, centrado) --
+      var bw = 152, bx = Math.round(W / 2 - bw / 2), by = y0 + 3, bh = 30;
       ctx.strokeStyle = M.PAL[M.C.PURP];
       ctx.lineWidth = 2;
       ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
@@ -225,20 +228,21 @@
       }
       F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', barX + barW + 3, barY, M.C.BONE2);
 
-      // -- 3 slots de objetos (derecha, número debajo) --
+      // -- 3 slots de objetos (anclados a la derecha, número debajo) --
       var sY = y0 + 4, sS = 18;
-      this._slotFrame(ctx, 262, sY, sS);
-      this._slotFrame(ctx, 284, sY, sS);
-      this._slotFrame(ctx, 306, sY, sS);
+      var s1 = W - 66, s2 = W - 44, s3 = W - 22;
+      this._slotFrame(ctx, s1, sY, sS);
+      this._slotFrame(ctx, s2, sY, sS);
+      this._slotFrame(ctx, s3, sY, sS);
       // slot 1: vela (parpadeo)
       var cf = (Math.floor(t * 5) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
-      Spr.draw(ctx, cf, 268, sY + 4);
-      F.draw(ctx, '' + game.candles, 268, sY + sS + 3, M.C.LMAG);
+      Spr.draw(ctx, cf, s1 + 6, sY + 4);
+      F.draw(ctx, '' + game.candles, s1 + 8, sY + sS + 3, M.C.LMAG);
       // slot 2: libro
-      Spr.draw(ctx, Spr.S.bookA, 287, sY + 7);
-      F.draw(ctx, '' + game.book, 290, sY + sS + 3, M.C.LMAG);
+      Spr.draw(ctx, Spr.S.bookA, s2 + 3, sY + 7);
+      F.draw(ctx, '' + game.book, s2 + 6, sY + sS + 3, M.C.LMAG);
       // slot 3: vacío (0)
-      F.draw(ctx, '0', 313, sY + sS + 3, M.C.BONE2);
+      F.draw(ctx, '0', s3 + 7, sY + sS + 3, M.C.BONE2);
 
       // silencio (esquina del HUD)
       if (M.Audio.muted) {
@@ -258,23 +262,6 @@
       ctx.fillRect(x, y, 1, 3);
       ctx.fillRect(x + s - 3, y + s - 1, 3, 1);
       ctx.fillRect(x + s - 1, y + s - 3, 1, 3);
-    },
-
-    /* ---------- inscripción latina flotante (canon) ----------
-       Texto rojo en diagonal (~-14°) arriba a la izquierda,
-       tembloroso, siguiendo la perspectiva isométrica. */
-    drawLatin: function (ctx, lines, t) {
-      ctx.save();
-      ctx.translate(14, 34);
-      ctx.rotate(-0.24);
-      ctx.globalAlpha = 0.82 + Math.sin(t * 2.1) * 0.1;
-      for (var i = 0; i < lines.length; i++) {
-        F.draw(ctx, lines[i], i * 6, i * 15, M.C.CRIM, {
-          scale: 2, jitter: 1,
-          shadow: M.C.BLOOD, shadowDx: 1, shadowDy: 1
-        });
-      }
-      ctx.restore();
     }
   };
 

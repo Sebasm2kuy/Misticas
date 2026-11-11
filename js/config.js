@@ -9,11 +9,15 @@ window.MISTICAS = window.MISTICAS || {};
 
 (function (M) {
 
-  // Resolución interna (estilo Amstrad/Spectrum, escalado entero)
+  // Resolución base (estilo Amstrad/Spectrum). El juego arranca con
+  // esta resolución y main.js la EXTIENDE en vivo (_resize) para
+  // ocupar el 100% de la pantalla: en escritorio con factor de píxel
+  // entero (nitidez 1:1) y en móvil con escala continua. Todo el
+  // motor dibuja leyendo M.SCREEN_W / M.SCREEN_H en tiempo real.
   M.SCREEN_W = 320;
   M.SCREEN_H = 200;
   M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 30 px)
-  M.VIEW_H = M.SCREEN_H - M.HUD_H; // 164 px de mundo visible
+  M.VIEW_H = M.SCREEN_H - M.HUD_H; // alto de mundo visible (se recalcula)
 
   // Rejilla isométrica
   M.TILE_W = 16;

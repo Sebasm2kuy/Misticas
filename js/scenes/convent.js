@@ -17,7 +17,6 @@
     var world = new M.WorldScene({
       darkness: 0.62,
       static: 0.03,
-      latin: ['UT COR SANCTAE ATTINGAS,', 'EIUS OCULIS SPECTA'],
       mapDef: {
         rows: [
           '##########################',

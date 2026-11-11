@@ -41,8 +41,21 @@ La primera noche, completa y jugable de principio a fin:
 
 **Móviles y pantallas táctiles:** cruceta en pantalla, botón de
 acción, y dos botones de sistema siempre visibles arriba a la
-derecha: **II (pausa)** y **♪ (audio)**. Tocar la pantalla en
-pausa reanuda; ningún punto del juego requiere teclado físico.
+derecha: **II (pausa)** y **♪ (audio)**, anclados a los bordes con
+márgenes seguros (notch). Tocar la pantalla en pausa reanuda;
+ningún punto del juego requiere teclado físico.
+
+## Pantalla completa
+
+El juego ocupa el **100% de la ventana** (sin cajita ni marcos):
+
+- **Escritorio:** factor de píxel entero (nitidez 1:1); la resolución
+  interna del lienzo se extiende para cubrir todo el monitor y la
+  cámara simplemente muestra más mundo.
+- **Móvil:** escala continua que aprovecha todo el ancho/alto útil
+  sin recortes extraños ni distorsión.
+- El HUD se ancla a los bordes (corazones a la izquierda, marco
+  NEXUS centrado, slots a la derecha) en cualquier resolución.
 
 ## HUD (fiel al canon)
 
@@ -51,8 +64,9 @@ audioserie: 5 corazones rojos con contorno de sangre y **medios
 corazones** a la izquierda; el marco central **NEXUS CUM NUMINE**
 con doble borde (morado/carmesí) y barra de progreso salmón; y
 a la derecha tres slots de objetos con el contador debajo.
-Las inscripciones latinas flotan en diagonal sobre la escena,
-como en el canon.
+Los textos en latín aparecen solo en su momento: en lápidas
+examinables y en la caja de diálogo inferior, nunca flotando
+en el cielo de las escenas exteriores.
 
 ## Cómo jugar
 

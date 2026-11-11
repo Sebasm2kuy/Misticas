@@ -100,7 +100,7 @@
           {
             t: 'fn', f: function () {
               g.control = true;
-              M.UI.showHint('FLECHAS O WASD: MU EVETE — NO LA PIERDAS DE VISTA', 6.5);
+              M.UI.showHint('FLECHAS O WASD: MUEVETE — NO LA PIERDAS DE VISTA', 6.5);
             }
           }
         ]);

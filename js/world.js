@@ -408,13 +408,13 @@
 
     // estática sutil
     if (this.cfg.static > 0) M.FX.drawStatic(ctx, this.cfg.static);
-
-    // inscripción latina flotante (canon: diagonal, roja, arriba-izquierda)
-    if (this.cfg.latin) M.UI.drawLatin(ctx, this.cfg.latin, self.t);
   };
 
   WorldScene.prototype._drawDarkness = function (ctx) {
-    if (!this._darkCanvas) {
+    // el lienzo de oscuridad sigue el tamaño real de la pantalla
+    if (!this._darkCanvas ||
+        this._darkCanvas.width !== M.SCREEN_W ||
+        this._darkCanvas.height !== M.VIEW_H) {
       this._darkCanvas = document.createElement('canvas');
       this._darkCanvas.width = M.SCREEN_W;
       this._darkCanvas.height = M.VIEW_H;

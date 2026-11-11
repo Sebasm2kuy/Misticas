@@ -15,7 +15,6 @@
       fog: 1.0,
       static: 0.05,
       bats: true,
-      latin: ['UT COR SANCTAE ATTINGAS,', 'EIUS OCULIS SPECTA'],
       mapDef: {
         rows: [
           'FFFFFFFFFFFFFFFFFFFFFFFFFFFF',

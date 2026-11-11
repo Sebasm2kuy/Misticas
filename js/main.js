@@ -7,7 +7,6 @@
 (function (M) {
 
   var F = M.Font;
-  var W = M.SCREEN_W, H = M.SCREEN_H;
 
   M.Scenes = M.Scenes || {};
 
@@ -31,30 +30,33 @@
       },
 
       draw: function (ctx) {
+        var W = M.SCREEN_W, H = M.SCREEN_H;
+        // posiciones proporcionales a la resolución real del lienzo
+        function y(v) { return Math.round(v * H / 200); }
         if (this.t < 3.2) {
           ctx.globalAlpha = 0.72 + Math.sin(this.t * 5) * 0.28;
-          F.drawCentered(ctx, 'CONTINUARA...', W / 2, 74, M.C.BONE, {
+          F.drawCentered(ctx, 'CONTINUARA...', W / 2, y(74), M.C.BONE, {
             scale: 2, spacing: 4, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, jitter: 1
           });
           ctx.globalAlpha = 1;
-          F.drawCentered(ctx, 'MISTICAS - ' + M.VERSION, W / 2, 108, M.C.BONE2);
+          F.drawCentered(ctx, 'MISTICAS - ' + M.VERSION, W / 2, y(108), M.C.BONE2);
         } else {
           var st = game.state;
           var secs = Math.max(0, Math.floor((performance.now() - st.startTime) / 1000));
           var mm = ('0' + Math.floor(secs / 60)).slice(-2);
           var ss = ('0' + (secs % 60)).slice(-2);
 
-          F.drawCentered(ctx, 'PRIMERA NOCHE SUPERADA', W / 2, 34, M.C.LMAG, { spacing: 1 });
-          F.drawCentered(ctx, '·', W / 2, 48, M.C.DPURP);
-          F.drawCentered(ctx, 'CORAZONES: ' + st.hearts + '/5', W / 2, 62, M.C.BONE);
-          F.drawCentered(ctx, 'VELAS: ' + st.candles + '/3', W / 2, 76, M.C.LORAN);
-          F.drawCentered(ctx, 'TIEMPO: ' + mm + ':' + ss, W / 2, 90, M.C.BONE);
-          F.drawCentered(ctx, 'NEXUS CUM NUMINE: ' + Math.round(st.nexus) + '%', W / 2, 104, M.C.MAG);
-          F.drawCentered(ctx, '·', W / 2, 118, M.C.DPURP);
+          F.drawCentered(ctx, 'PRIMERA NOCHE SUPERADA', W / 2, y(34), M.C.LMAG, { spacing: 1 });
+          F.drawCentered(ctx, '·', W / 2, y(48), M.C.DPURP);
+          F.drawCentered(ctx, 'CORAZONES: ' + st.hearts + '/5', W / 2, y(62), M.C.BONE);
+          F.drawCentered(ctx, 'VELAS: ' + st.candles + '/3', W / 2, y(76), M.C.LORAN);
+          F.drawCentered(ctx, 'TIEMPO: ' + mm + ':' + ss, W / 2, y(90), M.C.BONE);
+          F.drawCentered(ctx, 'NEXUS CUM NUMINE: ' + Math.round(st.nexus) + '%', W / 2, y(104), M.C.MAG);
+          F.drawCentered(ctx, '·', W / 2, y(118), M.C.DPURP);
           if (Math.sin(this.t * 3.2) > -0.2) {
-            F.drawCentered(ctx, 'PULSA UNA TECLA', W / 2, 138, M.C.BONE2);
+            F.drawCentered(ctx, 'PULSA UNA TECLA', W / 2, y(138), M.C.BONE2);
           }
-          F.drawCentered(ctx, 'ELLA TE ESPERA EN LA SIGUIENTE NOCHE', W / 2, 168, M.C.CRIM);
+          F.drawCentered(ctx, 'ELLA TE ESPERA EN LA SIGUIENTE NOCHE', W / 2, y(168), M.C.CRIM);
         }
       }
     };
@@ -92,18 +94,20 @@
       },
 
       draw: function (ctx) {
+        var W = M.SCREEN_W, H = M.SCREEN_H;
+        function y(v) { return Math.round(v * H / 200); }
         M.FX.drawStatic(ctx, 0.5);
         if (this.faceT > 0) {
-          M.Spr.drawFace(ctx, W / 2, 88);
+          M.Spr.drawFace(ctx, W / 2, y(88));
         } else {
-          F.drawCentered(ctx, 'TE HAN VISTO', W / 2, 58, M.C.LCRIM, {
+          F.drawCentered(ctx, 'TE HAN VISTO', W / 2, y(58), M.C.LCRIM, {
             scale: 2, shadow: M.C.BLOOD, shadowDx: 2, shadowDy: 2, jitter: 1
           });
-          F.drawCentered(ctx, 'EL CONVENTO TE RECLAMA', W / 2, 92, M.C.CRIM);
-          F.drawCentered(ctx, 'CORAZONES: 0/5', W / 2, 116, M.C.BONE2);
+          F.drawCentered(ctx, 'EL CONVENTO TE RECLAMA', W / 2, y(92), M.C.CRIM);
+          F.drawCentered(ctx, 'CORAZONES: 0/5', W / 2, y(116), M.C.BONE2);
         }
         if (Math.sin(this.t * 3) > -0.2) {
-          F.drawCentered(ctx, 'PULSA UNA TECLA PARA VOLVER A INTENTARLO', W / 2, 142, M.C.BONE);
+          F.drawCentered(ctx, 'PULSA UNA TECLA PARA VOLVER A INTENTARLO', W / 2, y(142), M.C.BONE);
         }
       }
     };
@@ -135,6 +139,9 @@
 
       var self = this;
       window.addEventListener('resize', function () { self._resize(); });
+      window.addEventListener('orientationchange', function () {
+        setTimeout(function () { self._resize(); }, 60);
+      });
       this.canvas.addEventListener('mousedown', function () {
         M.Audio.init();
         M.Audio.resume();
@@ -202,13 +209,55 @@
       requestAnimationFrame(loop);
     },
 
+    /* Pantalla completa real, sin cajita:
+       - Escritorio: factor de pixel ENTERO (nitidez 1:1) y la
+         resolución interna del lienzo se EXTIEDE para cubrir el
+         100% del monitor (la cámara simplemente muestra más mundo).
+       - Movil: se permite escala fraccional para aprovechar todo el
+         ancho/alto util sin recortes ni distorsion.
+       - Solo si la ventana es extrema (vertical muy largo o ultra
+         panorámica) se respetan los limites del motor con bandas
+         suaves que se funden con el CRT. */
     _resize: function () {
-      var w = window.innerWidth, h = window.innerHeight;
-      var s = Math.min(w / W, h / H);
-      if (s >= 1) s = Math.floor(s);
-      s = Math.max(0.4, s);
-      this.canvas.style.width = Math.round(W * s) + 'px';
-      this.canvas.style.height = Math.round(H * s) + 'px';
+      var BASE_W = 320, BASE_H = 200;
+      var MAX_W = 512, MAX_H = 320;   // límites del motor (tamaño de mapas)
+      var vw = Math.max(240, window.innerWidth);
+      var vh = Math.max(160, window.innerHeight);
+
+      // factor de pixel: entero y grande en escritorio; en pantallas
+      // pequeñas (móvil) fraccional para llenar toda la pantalla
+      var s = Math.min(vw / BASE_W, vh / BASE_H);
+      if (s >= 2) s = Math.floor(s);
+      if (s < 0.75) s = 0.75;
+
+      // resolución interna que cubre toda la ventana con ese factor
+      var wantW = Math.ceil(vw / s);
+      var wantH = Math.ceil(vh / s);
+      var cw = Math.min(wantW, MAX_W);
+      var ch = Math.min(wantH, MAX_H);
+
+      // CSS al 100% salvo cuando el límite interno recorta
+      var cssW = (wantW > cw) ? Math.round(cw * s) : vw;
+      var cssH = (wantH > ch) ? Math.round(ch * s) : vh;
+
+      this.canvas.width = cw;
+      this.canvas.height = ch;
+      this.canvas.style.width = cssW + 'px';
+      this.canvas.style.height = cssH + 'px';
+      this.ctx.imageSmoothingEnabled = false;
+
+      // el motor entero dibuja con estas dimensiones en vivo
+      M.SCREEN_W = cw;
+      M.SCREEN_H = ch;
+      M.VIEW_H = ch - M.HUD_H;
+
+      this._syncAudioBtn();
+    },
+
+    // refleja el estado de silencio en el botón táctil de audio
+    _syncAudioBtn: function () {
+      var b = document.getElementById('t-audio');
+      if (b) b.classList.toggle('muted', !!M.Audio.muted);
     },
 
     resetState: function () {
@@ -341,7 +390,7 @@
         this.paused = !this.paused;
       }
       if (this.paused) return;
-      if (M.Input.hit('mute')) M.Audio.toggleMute();
+      if (M.Input.hit('mute')) { M.Audio.toggleMute(); this._syncAudioBtn(); }
 
       M.UI.updateDialog(dt);
       if (this.scene && this.scene.update) this.scene.update(dt, this);
@@ -350,6 +399,7 @@
 
     draw: function () {
       var ctx = this.ctx;
+      var W = M.SCREEN_W, H = M.SCREEN_H;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, 0, W, H);
 
@@ -371,10 +421,11 @@
         ctx.fillStyle = M.PAL[M.C.BLACK];
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
-        F.drawCentered(ctx, 'PAUSA', W / 2, 84, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
+        var cy = Math.round(M.VIEW_H / 2);
+        F.drawCentered(ctx, 'PAUSA', W / 2, cy - 12, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
         var touchMode = document.body.classList.contains('touch');
-        F.drawCentered(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, 112, M.C.BONE2);
-        F.drawCentered(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, 126, M.C.CRIM);
+        F.drawCentered(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, cy + 14, M.C.BONE2);
+        F.drawCentered(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, cy + 28, M.C.CRIM);
       }
     }
   };
