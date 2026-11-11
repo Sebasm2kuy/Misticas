@@ -67,9 +67,9 @@ canvas#game {
 #vig {
   position: absolute; inset: 0; z-index: 5; pointer-events: none;
   background: radial-gradient(ellipse at center,
-    rgba(0, 0, 0, 0) 52%,
-    rgba(5, 0, 10, .34) 78%,
-    rgba(0, 0, 0, .62) 100%);
+    rgba(0, 0, 0, 0) 62%,
+    rgba(5, 0, 10, .10) 84%,
+    rgba(0, 0, 0, .26) 100%);
 }
 
 /* Barra de refresco vertical que desciende lentamente */
@@ -100,29 +100,50 @@ canvas#game {
   93% { opacity: .024; } 94% { opacity: 0; }
 }
 
-/* ---- Controles táctiles ---- */
+/* ---- Controles táctiles ----
+   Se muestran: en dispositivos táctiles (pointer: coarse),
+   tras el primer toque, o cuando el juego está en pausa. */
 #touch {
   position: fixed; inset: 0; z-index: 10;
   display: none; pointer-events: none;
 }
 body.touch #touch { display: block; }
+@media (pointer: coarse) {
+  #touch { display: block; }
+}
 
 .tbtn {
   position: absolute; width: 42px; height: 42px;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid #5d1f9e;
+  border: 1px solid #7a1fd0;
   border-radius: 8px;
-  background: rgba(40, 10, 70, .45);
-  color: #c42fa6;
+  background: rgba(46, 18, 72, .55);
+  color: #ffa8a0;
   font-family: monospace;
   font-size: 15px;
   pointer-events: auto;
   touch-action: none;
-  text-shadow: 0 0 6px rgba(244, 98, 210, .8);
+  -webkit-tap-highlight-color: transparent;
+  text-shadow: 0 0 6px rgba(255, 74, 42, .65);
 }
-.tbtn:active {
-  background: rgba(93, 31, 158, .55);
-  color: #f462d2;
+.tbtn:active, .tbtn.held {
+  background: rgba(122, 31, 208, .55);
+  color: #fff3ea;
+}
+
+/* Botones de sistema: PAUSA y AUDIO (siempre visibles, arriba) */
+.tbtn.tsys {
+  width: 44px; height: 40px;
+  font-size: 17px; font-weight: bold;
+  letter-spacing: 1px;
+  border-color: #e8281e;
+  background: rgba(23, 11, 38, .72);
+  color: #ffa8a0;
+  text-shadow: 0 0 7px rgba(232, 40, 30, .8);
+}
+.tbtn.tsys:active, .tbtn.tsys.held {
+  background: rgba(232, 40, 30, .45);
+  color: #fff3ea;
 }
 
 /* Aviso para pantallas muy estrechas: conserva proporción 16:10 */

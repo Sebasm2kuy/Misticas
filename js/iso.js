@@ -90,7 +90,11 @@
              this.isSolid(map, gx - r, gy + r) || this.isSolid(map, gx + r, gy + r);
     },
 
-    /* ---------- dibujo de teselas ---------- */
+    /* ---------- dibujo de teselas ----------
+       Canon de las capturas reales: suelo negro con contornos
+       morados (wireframe), arista superior-izquierda iluminada
+       en rosa salmón de vez en cuando y puntitos morados
+       dispersos. Sin degradados. */
 
     _diamond: function (ctx, sx, sy, color) {
       ctx.fillStyle = M.PAL[color];
@@ -103,54 +107,84 @@
       ctx.fill();
     },
 
+    _diamondOutline: function (ctx, sx, sy, color) {
+      ctx.strokeStyle = M.PAL[color];
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx + HW, sy + 0.5);
+      ctx.lineTo(sx + TW - 0.5, sy + HH);
+      ctx.lineTo(sx + HW, sy + TH - 0.5);
+      ctx.lineTo(sx + 0.5, sy + HH);
+      ctx.closePath();
+      ctx.stroke();
+    },
+
+    // arista superior-izquierda iluminada (rosa salmón)
+    _litEdge: function (ctx, sx, sy) {
+      ctx.fillStyle = M.PAL[M.C.LMAG];
+      ctx.fillRect(sx + HW - 3, sy + 1, 4, 1);
+      ctx.fillRect(sx + 2, sy + 2, 3, 1);
+    },
+
+    // puntito de textura violeta disperso (determinista)
+    _speck: function (ctx, sx, sy, gx, gy, color) {
+      ctx.fillStyle = M.PAL[color];
+      ctx.fillRect(sx + 4 + Math.floor(M.hash(gx, gy) * 8), sy + 2 + Math.floor((M.hash(gy, gx) * 4) % 4), 1, 1);
+    },
+
     drawFloorTile: function (ctx, type, sx, sy, gx, gy) {
       var hv = M.hash(gx, gy);
       switch (type) {
         case 'grass':
           this._diamond(ctx, sx, sy, M.C.VDARK);
-          if (hv > 0.62) { ctx.fillStyle = M.PAL[M.C.DARK]; ctx.fillRect(sx + 4 + ((gx * 3) % 8), sy + 3, 1, 1); }
-          if (hv < 0.18) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 10 - ((gy * 5) % 6), sy + 5, 1, 1); }
+          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
+          if (hv > 0.62) this._speck(ctx, sx, sy, gx, gy, M.C.DARK);
+          if (hv < 0.14) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 10 - ((gy * 5) % 6), sy + 5, 1, 1); }
+          if (hv > 0.93) this._litEdge(ctx, sx, sy);
           break;
         case 'path':
-          this._diamond(ctx, sx, sy, M.C.DARK);
-          if (hv > 0.55) { ctx.fillStyle = M.PAL[M.C.DPURP]; ctx.fillRect(sx + 5 + ((gy * 7) % 6), sy + 4, 1, 1); }
+          this._diamond(ctx, sx, sy, M.C.BLACK);
+          this._diamondOutline(ctx, sx, sy, M.C.PURP);
+          if (hv > 0.55) this._speck(ctx, sx, sy, gx, gy, M.C.DPURP);
           if (hv < 0.2) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 9, sy + 2, 1, 1); }
+          if (hv > 0.86) this._litEdge(ctx, sx, sy);
           break;
         case 'dirt':
-          this._diamond(ctx, sx, sy, M.C.DARK);
-          if (hv > 0.5) { ctx.fillStyle = M.PAL[M.C.VDARK]; ctx.fillRect(sx + 3 + ((gx * 5) % 9), sy + 4, 2, 1); }
-          if (hv < 0.12) { ctx.fillStyle = M.PAL[M.C.DPURP]; ctx.fillRect(sx + 8, sy + 2, 1, 1); }
+          this._diamond(ctx, sx, sy, M.C.BLACK);
+          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
+          if (hv > 0.5) { ctx.fillStyle = M.PAL[M.C.DARK]; ctx.fillRect(sx + 3 + ((gx * 5) % 9), sy + 4, 2, 1); }
+          if (hv < 0.12) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
           break;
         case 'stone':
-          this._diamond(ctx, sx, sy, ((gx + gy) & 1) ? M.C.VDARK : M.C.DARK);
-          // juntas
-          ctx.strokeStyle = M.PAL[M.C.BLACK];
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + TW - 0.5, sy + HH);
-          ctx.lineTo(sx + HW, sy + TH - 0.5); ctx.lineTo(sx + 0.5, sy + HH);
-          ctx.closePath(); ctx.stroke();
-          if (hv > 0.87) { ctx.fillStyle = M.PAL[M.C.DPURP]; ctx.fillRect(sx + 7, sy + 3, 1, 1); }
+          // interior del convento: losa negra con junta morada
+          this._diamond(ctx, sx, sy, M.C.BLACK);
+          this._diamondOutline(ctx, sx, sy, M.C.PURP);
+          if (hv > 0.87) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
+          if (hv > 0.55 && hv < 0.62) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + HW - 2, sy + 1, 3, 1); }
           break;
         case 'carpet':
-          this._diamond(ctx, sx, sy, M.C.CRIM);
+          // alfombra morada del canon
+          this._diamond(ctx, sx, sy, M.C.DPURP);
+          this._diamondOutline(ctx, sx, sy, M.C.LPURP);
           if ((gx * 3 + gy * 5) % 7 === 0) {
-            ctx.fillStyle = M.PAL[M.C.LCRIM];
+            ctx.fillStyle = M.PAL[M.C.LMAG];
             ctx.fillRect(sx + 7, sy + 3, 2, 1);
           }
           if ((gx + gy) % 4 === 0) {
-            ctx.strokeStyle = M.PAL[M.C.BLOOD];
-            ctx.beginPath();
-            ctx.moveTo(sx + 6, sy + 4); ctx.lineTo(sx + 10, sy + 4);
-            ctx.stroke();
+            ctx.fillStyle = M.PAL[M.C.LPURP];
+            ctx.fillRect(sx + 6, sy + 4, 4, 1);
           }
           break;
         default:
-          this._diamond(ctx, sx, sy, M.C.VDARK);
+          this._diamond(ctx, sx, sy, M.C.BLACK);
+          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
       }
     },
 
-    /* Bloque isométrico (muro) de altura h px */
+    /* Bloque isométrico (muro) de altura h px.
+       Canon: caras moradas planas con ladrillos rosa salmón
+       dispersos y contorno negro grueso; tapa morada con
+       iluminación violeta. */
     drawWall: function (ctx, sx, sy, hh) {
       // cara izquierda (SO)
       ctx.fillStyle = M.PAL[M.C.DPURP];
@@ -161,13 +195,27 @@
       ctx.lineTo(sx, sy + HH - hh);
       ctx.closePath(); ctx.fill();
       // cara derecha (SE)
-      ctx.fillStyle = M.PAL[M.C.DARK];
+      ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.beginPath();
       ctx.moveTo(sx + HW, sy + TH);
       ctx.lineTo(sx + TW, sy + HH);
       ctx.lineTo(sx + TW, sy + HH - hh);
       ctx.lineTo(sx + HW, sy + TH - hh);
       ctx.closePath(); ctx.fill();
+      // ladrillos salmón dispersos (deterministas por posición)
+      var seed = (Math.floor(sx) * 7 + Math.floor(sy) * 13) % 97;
+      if (seed % 3 === 0) {
+        ctx.fillStyle = M.PAL[M.C.LMAG];
+        ctx.fillRect(sx + 3, sy + HH - Math.floor(hh * 0.55), 3, 1);
+      }
+      if (seed % 4 === 1) {
+        ctx.fillStyle = M.PAL[M.C.LMAG];
+        ctx.fillRect(sx + HW + 2, sy + HH - Math.floor(hh * 0.3), 4, 1);
+      }
+      if (seed % 5 === 2) {
+        ctx.fillStyle = M.PAL[M.C.LMAG];
+        ctx.fillRect(sx + 4, sy + HH - Math.floor(hh * 0.8), 2, 1);
+      }
       // tapa
       ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.beginPath();
@@ -176,6 +224,18 @@
       ctx.lineTo(sx + HW, sy + TH - hh);
       ctx.lineTo(sx, sy + HH - hh);
       ctx.closePath(); ctx.fill();
+      // contorno negro grueso de la silueta (canon)
+      ctx.strokeStyle = M.PAL[M.C.BLACK];
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy + HH);
+      ctx.lineTo(sx, sy + HH - hh);
+      ctx.lineTo(sx + HW, sy - hh);
+      ctx.lineTo(sx + TW, sy + HH - hh);
+      ctx.lineTo(sx + TW, sy + HH);
+      ctx.lineTo(sx + HW, sy + TH);
+      ctx.closePath(); ctx.stroke();
+      // arista iluminada violeta sobre la tapa
       ctx.strokeStyle = M.PAL[M.C.LPURP];
       ctx.beginPath();
       ctx.moveTo(sx + HW, sy - hh);

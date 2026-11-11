@@ -12,8 +12,8 @@ window.MISTICAS = window.MISTICAS || {};
   // Resolución interna (estilo Amstrad/Spectrum, escalado entero)
   M.SCREEN_W = 320;
   M.SCREEN_H = 200;
-  M.HUD_H = 26;                    // barra inferior retro
-  M.VIEW_H = M.SCREEN_H - M.HUD_H; // 174 px de mundo visible
+  M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 30 px)
+  M.VIEW_H = M.SCREEN_H - M.HUD_H; // 164 px de mundo visible
 
   // Rejilla isométrica
   M.TILE_W = 16;
@@ -21,25 +21,28 @@ window.MISTICAS = window.MISTICAS || {};
   M.TILE_HW = 8; // mitad de ancho
   M.TILE_HH = 4; // mitad de alto
 
-  /* Paleta de 16 colores: negros violáceos, púrpuras, magentas,
-     carmesí, naranjas de vela y hueso. Fondo negro absoluto. */
+  /* Paleta de 16 colores según las capturas reales del canon:
+     negro absoluto, morados estructurales (#7A1FD0 / #8A2BE2),
+     rosa salmón (#FFA8A0) para aristas y marcos, rojo vivo
+     (#E8281E) para la capucha y los corazones, naranjas de vela
+     y hueso. Sin degradados: relleno plano + contorno. */
   M.PAL = [
-    '#000000', // 0  NEGRO absoluto
-    '#150A20', // 1  violeta casi negro
-    '#271045', // 2  violeta oscuro
-    '#3E1568', // 3  púrpura profundo
-    '#5D1F9E', // 4  púrpura
-    '#8E4AD8', // 5  púrpura claro
-    '#C42FA6', // 6  magenta
-    '#F462D2', // 7  magenta claro
-    '#B0123C', // 8  carmesí
-    '#FF2E5E', // 9  carmesí brillante
-    '#FF7A1E', // A  naranja (vela)
-    '#FFC44D', // B  naranja claro (llama)
-    '#E8DCE8', // C  hueso
-    '#A898B0', // D  gris violáceo
-    '#FFFFFF', // E  blanco (mínimo)
-    '#5A0A20', // F  sangre oscura
+    '#000000', // 0  NEGRO absoluto (fondo)
+    '#170B26', // 1  violeta casi negro (suelos base)
+    '#2E1248', // 2  violeta oscuro (manchas, sombra)
+    '#5A15A0', // 3  púrpura profundo (contornos gruesos)
+    '#7A1FD0', // 4  morado estructural (líneas de losas)
+    '#8A2BE2', // 5  púrpura saturado (arcos, fantasmas)
+    '#A06BF0', // 6  violeta luminoso (iluminación)
+    '#FFA8A0', // 7  ROSA SALMÓN (aristas iluminadas, marcos HUD)
+    '#E8281E', // 8  ROJO VIVO (capucha, corazones, latín)
+    '#FF4A2A', // 9  rojo-naranja (alertas, fantasma)
+    '#FF7A1E', // A  naranja (llama de vela)
+    '#FFC44D', // B  naranja claro (llama interior)
+    '#E8E0D0', // C  hueso (cráneos, texto principal)
+    '#A890B8', // D  gris violáceo (texto secundario, piedra)
+    '#FFF3EA', // E  blanco cálido mínimo (brillo)
+    '#C01818', // F  rojo sangre (contornos de corazón)
   ];
 
   // Alias semánticos

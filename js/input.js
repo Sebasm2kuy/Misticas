@@ -26,6 +26,12 @@
       var self = this;
       var KEY = this._MAP;
 
+      // Detección inmediata de dispositivo táctil: los botones
+      // aparecen sin esperar al primer toque (sin bloqueos).
+      if (('ontouchstart' in window) || (navigator.maxTouchPoints > 0)) {
+        document.body.classList.add('touch');
+      }
+
       window.addEventListener('keydown', function (e) {
         var k = KEY[e.code];
         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].indexOf(e.code) >= 0) e.preventDefault();

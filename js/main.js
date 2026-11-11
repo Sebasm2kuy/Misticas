@@ -136,10 +136,45 @@
       var self = this;
       window.addEventListener('resize', function () { self._resize(); });
       this.canvas.addEventListener('mousedown', function () {
-        M.Input.anyPressed = true;
-        M.Input.pressed.fire = true;
         M.Audio.init();
         M.Audio.resume();
+        if (self.paused) {
+          // tocando la pantalla en pausa se reanuda
+          M.Input.anyPressed = true;
+          M.Input.pressed.pause = true;
+          return;
+        }
+        M.Input.anyPressed = true;
+        M.Input.pressed.fire = true;
+      });
+      // reanudar también con pointerdown sobre el monitor (móvil)
+      var crt = document.getElementById('crt');
+      if (crt) {
+        crt.addEventListener('pointerdown', function () {
+          M.Audio.init();
+          M.Audio.resume();
+          if (self.paused) {
+            M.Input.anyPressed = true;
+            M.Input.pressed.pause = true;
+          }
+        });
+      }
+      // en móvil, cualquier toque sobre la página avanza las pantallas
+      // sin HUD (arranque, portada, finales) — nadie se queda bloqueado
+      document.body.addEventListener('pointerdown', function (ev) {
+        M.Audio.init();
+        M.Audio.resume();
+        if (self.paused) {
+          M.Input.anyPressed = true;
+          M.Input.pressed.pause = true;
+          return;
+        }
+        // los botones táctiles gestionan sus propias teclas
+        if (ev.target && ev.target.classList && ev.target.classList.contains('tbtn')) return;
+        if (!self.scene || self.scene.hud === false) {
+          M.Input.anyPressed = true;
+          M.Input.pressed.fire = true;
+        }
       });
       document.addEventListener('visibilitychange', function () {
         if (document.hidden && self.scene && self.scene.hud !== false) self.paused = true;
@@ -336,8 +371,10 @@
         ctx.fillStyle = M.PAL[M.C.BLACK];
         ctx.fillRect(0, 0, W, H);
         ctx.globalAlpha = 1;
-        F.drawCentered(ctx, 'PAUSA', W / 2, 88, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
-        F.drawCentered(ctx, 'P: CONTINUAR - M: SILENCIO', W / 2, 116, M.C.BONE2);
+        F.drawCentered(ctx, 'PAUSA', W / 2, 84, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
+        var touchMode = document.body.classList.contains('touch');
+        F.drawCentered(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, 112, M.C.BONE2);
+        F.drawCentered(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, 126, M.C.CRIM);
       }
     }
   };

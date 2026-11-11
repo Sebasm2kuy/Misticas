@@ -17,6 +17,7 @@
     var world = new M.WorldScene({
       darkness: 0.62,
       static: 0.03,
+      latin: ['UT COR SANCTAE ATTINGAS,', 'EIUS OCULIS SPECTA'],
       mapDef: {
         rows: [
           '##########################',
@@ -223,10 +224,10 @@
           }
         });
 
-        // que te vean
+        // que te vean (canon: cada captura resta 1 corazón y medio)
         g.sister.onSeen = function () {
           if (game.state.grace > 0 || scene.phase !== 'stealth') return;
-          game.damage(1);
+          game.damage(1.5);
           if (game.state.hearts <= 0) return; // game over lo gestiona damage()
           g.sister.state = 'alert';
           g.sister.alertT = 1.3;

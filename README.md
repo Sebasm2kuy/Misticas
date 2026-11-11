@@ -36,16 +36,34 @@ La primera noche, completa y jugable de principio a fin:
 |---|---|
 | Flechas / WASD | Moverse (isométrico) |
 | Espacio / Enter / E | Hablar, examinar, colarse por la ventana |
-| P / Esc | Pausa |
-| M | Silencio |
+| P / Esc | Pausa (o botón táctil II) |
+| M | Silencio (o botón táctil ♪) |
 
-En pantallas táctiles aparecen controles en pantalla.
+**Móviles y pantallas táctiles:** cruceta en pantalla, botón de
+acción, y dos botones de sistema siempre visibles arriba a la
+derecha: **II (pausa)** y **♪ (audio)**. Tocar la pantalla en
+pausa reanuda; ningún punto del juego requiere teclado físico.
+
+## HUD (fiel al canon)
+
+La barra inferior replica el HUD de las capturas reales de la
+audioserie: 5 corazones rojos con contorno de sangre y **medios
+corazones** a la izquierda; el marco central **NEXUS CUM NUMINE**
+con doble borde (morado/carmesí) y barra de progreso salmón; y
+a la derecha tres slots de objetos con el contador debajo.
+Las inscripciones latinas flotan en diagonal sobre la escena,
+como en el canon.
 
 ## Cómo jugar
 
 Abre `index.html` en cualquier navegador moderno. No hay dependencias,
 no hay compilación, no hay CDN: todo (gráficos, fuente pixel, música de
 *beeper*, ruido de casete, efectos CRT) se genera por código.
+
+La paleta está calibrada contra las capturas reales de la ficción:
+negro absoluto, morados `#7A1FD0`/`#8A2BE2`, rosa salmón `#FFA8A0`,
+rojo vivo `#E8281E` y hueso `#E8E0D0`, con relleno plano y contorno
+negro (sin degradados, estilo CGA/8-bit sobre monitor CRT).
 
 ## Desplegar en GitHub Pages
 

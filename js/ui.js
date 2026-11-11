@@ -153,55 +153,128 @@
       ctx.globalAlpha = 1;
     },
 
-    /* ---------- HUD inferior ---------- */
+    /* ---------- HUD inferior (canon de las capturas reales) ----------
+       Izquierda: 5 corazones (rojo vivo, contorno sangre, medios).
+       Centro: marco NEXUS CUM NUMINE con doble borde (morado
+       exterior, línea carmesí interior) y barra de progreso salmón.
+       Derecha: 3 slots con borde morado y el número debajo. */
     drawHUD: function (ctx, game, t) {
       var y0 = M.SCREEN_H - M.HUD_H;
-      ctx.fillStyle = M.PAL[M.C.VDARK];
+      ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, y0, W, M.HUD_H);
       ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.fillRect(0, y0, W, 1);
-      ctx.fillStyle = M.PAL[M.C.BLACK];
+      ctx.fillStyle = M.PAL[M.C.VDARK];
       ctx.fillRect(0, y0 + 1, W, 1);
 
       var Spr = M.Spr, i;
 
-      // corazones de vida (5)
+      // -- corazones de vida (5, con medios) --
+      var hx = 8, hy = y0 + 14;
       for (i = 0; i < 5; i++) {
-        var sp = i < game.hearts ? Spr.S.heartFull : Spr.S.heartEmpty;
-        Spr.draw(ctx, sp, 6 + i * 10, y0 + 5);
-      }
-
-      // barra NEXUS CUM NUMINE
-      var labelColor = game.nexusFlag > 0 ? M.C.LCRIM : M.C.MAG;
-      F.drawCentered(ctx, 'NEXUS CUM NUMINE', 165, y0 + 4, labelColor);
-      var segs = 20, segW = 5, barX = 116, barY = y0 + 15;
-      for (i = 0; i < segs; i++) {
-        var filled = game.nexus >= ((i + 1) * 5) - 0.01;
-        var partial = !filled && game.nexus > i * 5;
-        ctx.fillStyle = M.PAL[filled ? ((i % 2) ? M.C.LMAG : M.C.MAG) : M.C.DARK];
-        ctx.fillRect(barX + i * segW, barY, 4, 6);
-        if (partial) {
-          ctx.fillStyle = M.PAL[M.C.PURP];
-          ctx.fillRect(barX + i * segW, barY + 3, 4, 3);
+        var full = game.hearts >= i + 1;
+        var half = !full && game.hearts >= i + 0.5;
+        Spr.draw(ctx, Spr.S.heartEmpty, hx + i * 11, hy);
+        if (full) {
+          Spr.draw(ctx, Spr.S.heartFull, hx + i * 11, hy);
+        } else if (half) {
+          // mitad izquierda llena sobre el contorno vacío
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(hx + i * 11, hy, 5, Spr.S.heartFull.h);
+          ctx.clip();
+          Spr.draw(ctx, Spr.S.heartFull, hx + i * 11, hy);
+          ctx.restore();
         }
       }
-      ctx.strokeStyle = M.PAL[M.C.DPURP];
-      ctx.strokeRect(barX - 1.5, barY - 1.5, segs * segW + 2, 9);
-      F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', barX + segs * segW + 5, barY, M.C.BONE2);
 
-      // contadores de objetos: velas y libro
-      var cf = (Math.floor(t * 5) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
-      Spr.draw(ctx, cf, 238, y0 + 6);
-      F.draw(ctx, game.candles + '/' + game.candlesMax, 247, y0 + 12, M.C.LORAN);
-      Spr.draw(ctx, Spr.S.bookA, 276, y0 + 12);
-      F.draw(ctx, '' + game.book, 288, y0 + 12, M.C.BONE2);
+      // -- marco central NEXUS CUM NUMINE (doble borde) --
+      var bw = 152, bx = 105, by = y0 + 3, bh = 30;
+      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
+      ctx.strokeStyle = M.PAL[M.C.CRIM];
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx + 3.5, by + 3.5, bw - 7, bh - 7);
+      // muescas de esquina (salmón)
+      ctx.fillStyle = M.PAL[M.C.LMAG];
+      ctx.fillRect(bx - 1, by + 1, 2, 2); ctx.fillRect(bx + bw - 1, by + 1, 2, 2);
+      ctx.fillRect(bx - 1, by + bh - 3, 2, 2); ctx.fillRect(bx + bw - 1, by + bh - 3, 2, 2);
 
-      // silencio
-      if (M.Audio.muted) {
-        F.draw(ctx, 'M', 305, y0 + 4, M.C.BONE2);
-        ctx.fillStyle = M.PAL[M.C.CRIM];
-        ctx.fillRect(304, y0 + 7, 7, 1);
+      var labelColor = game.nexusFlag > 0 ? M.C.LMAG : M.C.CRIM;
+      F.drawCentered(ctx, 'NEXUS CUM NUMINE', bx + bw / 2, by + 6, labelColor, { spacing: 1 });
+
+      // barra de progreso continua (relleno salmón, borde morado)
+      var barW = bw - 22, barX = bx + 11, barY = by + 19;
+      ctx.fillStyle = M.PAL[M.C.BLACK];
+      ctx.fillRect(barX, barY, barW, 5);
+      var fillW = Math.round(barW * Math.min(1, game.nexus / 100));
+      ctx.fillStyle = M.PAL[M.C.LMAG];
+      ctx.fillRect(barX, barY, fillW, 5);
+      if (game.nexus > 0 && game.nexus < 100) {
+        ctx.fillStyle = M.PAL[M.C.BONE2];
+        ctx.fillRect(barX + fillW - 1, barY, 1, 5);
       }
+      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX - 0.5, barY - 0.5, barW + 1, 6);
+      // marcas sutiles cada 20%
+      for (i = 1; i < 5; i++) {
+        ctx.fillStyle = M.PAL[M.C.DPURP];
+        ctx.fillRect(barX + Math.round(barW * i / 5), barY + 4, 1, 1);
+      }
+      F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', barX + barW + 3, barY, M.C.BONE2);
+
+      // -- 3 slots de objetos (derecha, número debajo) --
+      var sY = y0 + 4, sS = 18;
+      this._slotFrame(ctx, 262, sY, sS);
+      this._slotFrame(ctx, 284, sY, sS);
+      this._slotFrame(ctx, 306, sY, sS);
+      // slot 1: vela (parpadeo)
+      var cf = (Math.floor(t * 5) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
+      Spr.draw(ctx, cf, 268, sY + 4);
+      F.draw(ctx, '' + game.candles, 268, sY + sS + 3, M.C.LMAG);
+      // slot 2: libro
+      Spr.draw(ctx, Spr.S.bookA, 287, sY + 7);
+      F.draw(ctx, '' + game.book, 290, sY + sS + 3, M.C.LMAG);
+      // slot 3: vacío (0)
+      F.draw(ctx, '0', 313, sY + sS + 3, M.C.BONE2);
+
+      // silencio (esquina del HUD)
+      if (M.Audio.muted) {
+        F.draw(ctx, 'M', 4, y0 + 27, M.C.BONE2);
+        ctx.fillStyle = M.PAL[M.C.CRIM];
+        ctx.fillRect(4, y0 + 34, 7, 1);
+      }
+    },
+
+    // marco de slot morado con esquina recortada
+    _slotFrame: function (ctx, x, y, s) {
+      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, s, s);
+      ctx.fillStyle = M.PAL[M.C.DPURP];
+      ctx.fillRect(x, y, 3, 1);
+      ctx.fillRect(x, y, 1, 3);
+      ctx.fillRect(x + s - 3, y + s - 1, 3, 1);
+      ctx.fillRect(x + s - 1, y + s - 3, 1, 3);
+    },
+
+    /* ---------- inscripción latina flotante (canon) ----------
+       Texto rojo en diagonal (~-14°) arriba a la izquierda,
+       tembloroso, siguiendo la perspectiva isométrica. */
+    drawLatin: function (ctx, lines, t) {
+      ctx.save();
+      ctx.translate(14, 34);
+      ctx.rotate(-0.24);
+      ctx.globalAlpha = 0.82 + Math.sin(t * 2.1) * 0.1;
+      for (var i = 0; i < lines.length; i++) {
+        F.draw(ctx, lines[i], i * 6, i * 15, M.C.CRIM, {
+          scale: 2, jitter: 1,
+          shadow: M.C.BLOOD, shadowDx: 1, shadowDy: 1
+        });
+      }
+      ctx.restore();
     }
   };
 
