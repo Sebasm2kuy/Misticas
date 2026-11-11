@@ -1,10 +1,20 @@
 /* ============================================================
    MÍSTICAS — (C) 1987 — Hoja de estilos del "monitor CRT"
-   PANTALLA COMPLETA REAL: el tubo ocupa el 100% de la ventana
-   (sin cajita, sin marco) y solo se le suman las capas del
-   fósforo: scanlines, rejilla, viñeta, refresco y parpadeo.
-   ============================================================ */
+   LETTERBOX 4:3: el juego vive en un lienzo lógico fijo de
+   320x240 que main.js escala con fit-contain (barras negras
+   donde haga falta). El tubo NUNCA se estira ni se recorta:
+   el HUD queda siempre dentro del marco visible. Encima solo
+   se suman las capas del fósforo: scanlines, rejilla, viñeta,
+   refresco y parpadeo. Los controles táctiles viven en las
+   bandas negras, fuera del tubo. */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+}
 
 html, body {
   height: 100%;
@@ -20,7 +30,8 @@ body {
   background: #000;
 }
 
-/* ---- Tubo CRT a sangre completa ---- */
+/* ---- Tubo CRT: el lienzo lo posiciona main.js (letterbox 4:3).
+       Este centrado flex es el respaldo si el JS no corre. ---- */
 #crt {
   position: fixed;
   inset: 0;
@@ -99,9 +110,11 @@ canvas#game {
 }
 
 /* ---- Controles táctiles ----
-   Anclados a los bordes de la pantalla (con márgenes seguros
-   para móviles con muesca), limpios y translúcidos para no
-   tapar el juego a pantalla completa.
+   Viven en las BANDAS NEGRAS del letterbox, FUERA del tubo:
+   PAUSA y AUDIO arriba; cruceta abajo-izquierda y FUEGO abajo-
+   derecha. main.js recalcula las posiciones en px tras cada
+   redimensionado (reservando sitio para que jamás pisen el
+   HUD); estas reglas son el respaldo si el JS no corre.
    Se muestran: en dispositivos táctiles (pointer: coarse),
    tras el primer toque, o cuando el juego está en pausa. */
 #touch {
@@ -133,7 +146,7 @@ body.touch #touch { display: block; }
   color: #fff3ea;
 }
 
-/* Botones de sistema: PAUSA y AUDIO, esquina superior derecha,
+/* Botones de sistema: PAUSA y AUDIO en la banda superior,
    siempre accesibles y sin estorbar la vista */
 .tbtn.tsys {
   width: 46px; height: 40px;
@@ -164,38 +177,32 @@ body.touch #touch { display: block; }
   transform: rotate(-24deg);
 }
 
-/* Posiciones con márgenes seguros (móviles con notch) */
+/* Posiciones de respaldo (main.js las recalcula con las
+   bandas reservadas y los márgenes seguros de muesca) */
 #t-pause {
-  top: calc(8px + env(safe-area-inset-top, 0px));
-  right: calc(10px + env(safe-area-inset-right, 0px));
+  top: 6px; right: 10px;
 }
 #t-audio {
-  top: calc(8px + env(safe-area-inset-top, 0px));
-  right: calc(62px + env(safe-area-inset-right, 0px));
+  top: 6px; right: 64px;
 }
 
-/* Cruceta inferior izquierda */
-#t-up {
-  left: calc(48px + env(safe-area-inset-left, 0px));
-  bottom: calc(98px + env(safe-area-inset-bottom, 0px));
-}
+/* Cruceta: banda inferior izquierda (arriba = hueco central) */
 #t-left {
-  left: calc(6px + env(safe-area-inset-left, 0px));
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  left: 6px; bottom: 8px;
 }
 #t-right {
-  left: calc(90px + env(safe-area-inset-left, 0px));
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  left: 100px; bottom: 8px;
+}
+#t-up {
+  left: 53px; bottom: 55px;
 }
 #t-down {
-  left: calc(48px + env(safe-area-inset-left, 0px));
-  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  left: 53px; bottom: 8px;
 }
 
-/* Botón de acción inferior derecha */
+/* Botón de acción: banda inferior derecha */
 #t-fire {
-  right: calc(16px + env(safe-area-inset-right, 0px));
-  bottom: calc(44px + env(safe-area-inset-bottom, 0px));
+  right: 14px; bottom: 6px;
   width: 58px; height: 58px;
   font-size: 20px;
 }
@@ -203,8 +210,7 @@ body.touch #touch { display: block; }
 /* Botones algo mayores en pantallas pequeñas */
 @media (max-width: 420px) {
   .tbtn { width: 48px; height: 48px; }
-  #t-left { left: calc(6px + env(safe-area-inset-left, 0px)); }
-  #t-right { left: calc(96px + env(safe-area-inset-left, 0px)); }
-  #t-up { left: calc(51px + env(safe-area-inset-left, 0px)); }
-  #t-down { left: calc(51px + env(safe-area-inset-left, 0px)); }
+  #t-right { left: 108px; }
+  #t-up { left: 57px; bottom: 59px; }
+  #t-down { left: 57px; }
 }

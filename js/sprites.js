@@ -886,9 +886,102 @@
     return c;
   }
 
+  /* Arco de piedra del convento (canon de la captura real):
+     banda purpura segmentada en dovelas sobre capitel y fuste
+     rojo vivo con basamenta escalonada. */
+  function buildArch() {
+    var c = document.createElement('canvas');
+    c.width = 24; c.height = 34;
+    var x = c.getContext('2d');
+
+    // fuste: pilar rojo vivo con contorno negro
+    x.fillStyle = M.PAL[M.C.BLACK];
+    x.fillRect(8, 12, 8, 20);          // margen del contorno
+    x.fillStyle = M.PAL[M.C.CRIM];
+    x.fillRect(9, 13, 6, 18);
+    // sombra lateral del fuste (volumen retro)
+    x.fillStyle = M.PAL[M.C.BLOOD];
+    x.fillRect(9, 13, 2, 18);
+
+    // capitel rojo: bloque que carga el arco
+    x.fillStyle = M.PAL[M.C.BLACK];
+    x.fillRect(5, 11, 14, 4);
+    x.fillStyle = M.PAL[M.C.CRIM];
+    x.fillRect(6, 12, 12, 2);
+    x.fillStyle = M.PAL[M.C.LCRIM];
+    x.fillRect(6, 12, 12, 1);
+
+    // arco: banda purpura saturado (media luna) con dovelas
+    x.strokeStyle = M.PAL[M.C.LPURP];
+    x.lineWidth = 4;
+    x.beginPath();
+    x.arc(12, 13, 8, Math.PI, Math.PI * 2); x.stroke();
+    // juntas de las dovelas (purpura profundo, radiales)
+    x.strokeStyle = M.PAL[M.C.DPURP];
+    x.lineWidth = 1;
+    for (var a = 0; a <= 180; a += 26) {
+      var rad = (90 - a) * Math.PI / 180;   // de izquierda a derecha
+      var jx = 12 + Math.cos(rad) * 8;
+      var jy = 13 - Math.sin(rad) * 8;
+      if (a === 0 || a === 180) { continue; }
+      x.beginPath();
+      x.moveTo(12 + Math.cos(rad) * 5, 13 - Math.sin(rad) * 5);
+      x.lineTo(12 + Math.cos(rad) * 11, 13 - Math.sin(rad) * 11);
+      x.stroke();
+    }
+    // clave del arco (arriba): sillar purpura con brillo
+    x.fillStyle = M.PAL[M.C.PURP];
+    x.fillRect(9, 4, 6, 4);
+    x.fillStyle = M.PAL[M.C.LPURP];
+    x.fillRect(9, 4, 6, 1);
+
+    // basamenta escalonada
+    x.fillStyle = M.PAL[M.C.BLACK];
+    x.fillRect(4, 31, 16, 3);
+    x.fillStyle = M.PAL[M.C.CRIM];
+    x.fillRect(5, 32, 14, 2);
+    x.fillStyle = M.PAL[M.C.BLOOD];
+    x.fillRect(5, 33, 14, 1);
+    return c;
+  }
+
+  /* Escalera isométrica del convento (canon): peldaños alternos
+     rosa salmon / blanco con laterales (zancas) morados. */
+  function buildStairs() {
+    var c = document.createElement('canvas');
+    c.width = 36; c.height = 26;
+    var x = c.getContext('2d');
+    var i, w, px, py;
+    // 4 peldaños: de abajo (el mas ancho) hacia arriba
+    for (i = 0; i < 4; i++) {
+      w = 34 - i * 6;            // cada peldaño mas estrecho
+      px = 1 + i * 3;            // y ligeramente mas adentro
+      py = 26 - (i + 1) * 6;
+      // contrahuella (frontal): blanca
+      x.fillStyle = M.PAL[M.C.WHITE];
+      x.fillRect(px, py + 2, w, 4);
+      // huella (superior): rosa salmon
+      x.fillStyle = M.PAL[M.C.LMAG];
+      x.fillRect(px, py, w, 2);
+      // zancas moradas a los lados
+      x.fillStyle = M.PAL[M.C.PURP];
+      x.fillRect(px, py, 2, 6);
+      x.fillRect(px + w - 2, py, 2, 6);
+      // sombra del peldaño sobre el inmediatamente inferior
+      x.fillStyle = M.PAL[M.C.BLACK];
+      x.fillRect(px + 2, py + 6, w - 4, 1);
+    }
+    // base: losa purpura profundo
+    x.fillStyle = M.PAL[M.C.DPURP];
+    x.fillRect(0, 24, 36, 2);
+    return c;
+  }
+
   Spr.buildBigTree = buildBigTree;
   Spr.buildDeadTree = buildDeadTree;
   Spr.buildMoon = buildMoon;
+  Spr.buildArch = buildArch;
+  Spr.buildStairs = buildStairs;
 
   // La cara: destello de 2 fotogramas en pantallas de título/pasillos
   Spr.drawFace = function (ctx, cx, cy) {
@@ -914,6 +1007,8 @@
   Spr.bigTree = null;
   Spr.moon = null;
   Spr.deadTrees = null;
+  Spr.archCanvas = null;
+  Spr.stairsCanvas = null;
 
   Spr.preload = function () {
     if (!this.bigTree) this.bigTree = buildBigTree();
@@ -921,6 +1016,8 @@
     if (!this.deadTrees) {
       this.deadTrees = [buildDeadTree(666, 1), buildDeadTree(1313, 1), buildDeadTree(77, 0.8)];
     }
+    if (!this.archCanvas) this.archCanvas = buildArch();
+    if (!this.stairsCanvas) this.stairsCanvas = buildStairs();
   };
 
   M.Spr = Spr;

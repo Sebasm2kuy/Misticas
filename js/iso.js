@@ -91,10 +91,10 @@
     },
 
     /* ---------- dibujo de teselas ----------
-       Canon de las capturas reales: suelo negro con contornos
-       morados (wireframe), arista superior-izquierda iluminada
-       en rosa salmón de vez en cuando y puntitos morados
-       dispersos. Sin degradados. */
+       Canon de las capturas reales (interior del convento): suelo
+       NEGRO con puntitos morados dispersos, SIN rejilla por losa.
+       El perímetro caminable se cierra con una banda morada sólida
+       (drawFloorEdge, la llama world.js). Sin degradados. */
 
     _diamond: function (ctx, sx, sy, color) {
       ctx.fillStyle = M.PAL[color];
@@ -156,11 +156,13 @@
           if (hv < 0.12) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
           break;
         case 'stone':
-          // interior del convento: losa negra con junta morada
+          // interior del convento (canon): losa negra con puntitos
+          // morados dispersos — NINGUNA rejilla por losa
           this._diamond(ctx, sx, sy, M.C.BLACK);
-          this._diamondOutline(ctx, sx, sy, M.C.PURP);
-          if (hv > 0.87) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
-          if (hv > 0.55 && hv < 0.62) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + HW - 2, sy + 1, 3, 1); }
+          if (hv > 0.30) this._speck(ctx, sx, sy, gx, gy, M.C.DPURP);
+          if (hv > 0.72) this._speck(ctx, sx, sy, gx + 3, gy + 5, M.C.PURP);
+          if (hv < 0.08) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 8, sy + 4, 1, 1); }
+          if (hv > 0.93) this._litEdge(ctx, sx, sy);
           break;
         case 'carpet':
           // alfombra morada del canon
@@ -181,42 +183,56 @@
       }
     },
 
-    /* Bloque isométrico (muro) de altura h px.
-       Canon: caras moradas planas con ladrillos rosa salmón
-       dispersos y contorno negro grueso; tapa morada con
-       iluminación violeta. */
+    /* Bloque isométrico (muro) de altura hh px.
+       Canon de la captura real "repisa con puerta y escalera":
+       sillares de contorno morado con caras rellenas de NEGRO,
+       juntas (mortero) moradas en hiladas corridas y algún
+       sillar encendido en rosa salmón. Tapa morada plana con
+       arista violeta y silueta negra gruesa. */
     drawWall: function (ctx, sx, sy, hh) {
+      var self = this;
+
+      function face(poly, ox, oy) {
+        // cara: negro + juntas moradas (clip al paralelogramo)
+        ctx.save();
+        ctx.beginPath();
+        for (var i = 0; i < poly.length; i++) {
+          if (i === 0) ctx.moveTo(poly[i][0] + sx, poly[i][1] + sy);
+          else ctx.lineTo(poly[i][0] + sx, poly[i][1] + sy);
+        }
+        ctx.closePath();
+        ctx.fillStyle = M.PAL[M.C.BLACK];
+        ctx.fill();
+        ctx.clip();
+        // hiladas horizontales de mortero morado
+        ctx.strokeStyle = M.PAL[M.C.PURP];
+        ctx.lineWidth = 1;
+        var y, x;
+        var top = sy + oy, bot = sy + oy - hh;
+        for (y = top - 4; y > bot; y -= 5) {
+          ctx.beginPath(); ctx.moveTo(sx - 2, y + 0.5); ctx.lineTo(sx + TW + 2, y + 0.5); ctx.stroke();
+        }
+        // juntas verticales: aparejo corrido (desfasadas por hilada)
+        var row = 0;
+        for (y = top - 4; y > bot; y -= 5, row++) {
+          for (x = ox + ((row % 2) ? 4 : 9); x < ox + TW; x += 10) {
+            ctx.beginPath(); ctx.moveTo(sx + x + 0.5, y - 4); ctx.lineTo(sx + x + 0.5, y + 1); ctx.stroke();
+          }
+        }
+        // sillares encendidos (rosa salmón, deterministas)
+        var seed = (Math.floor(sx) * 7 + Math.floor(sy) * 13 + Math.floor(hh)) % 97;
+        if (seed % 3 === 0) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + ox + 3, top - 9, 5, 3); }
+        if (seed % 4 === 1) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + ox + 13, top - 15, 5, 3); }
+        if (seed % 5 === 2) { ctx.fillStyle = M.PAL[M.C.DPURP]; ctx.fillRect(sx + ox + 7, top - 21, 5, 3); }
+        ctx.restore();
+      }
+
       // cara izquierda (SO)
-      ctx.fillStyle = M.PAL[M.C.DPURP];
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + HH);
-      ctx.lineTo(sx + HW, sy + TH);
-      ctx.lineTo(sx + HW, sy + TH - hh);
-      ctx.lineTo(sx, sy + HH - hh);
-      ctx.closePath(); ctx.fill();
+      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH);
       // cara derecha (SE)
-      ctx.fillStyle = M.PAL[M.C.PURP];
-      ctx.beginPath();
-      ctx.moveTo(sx + HW, sy + TH);
-      ctx.lineTo(sx + TW, sy + HH);
-      ctx.lineTo(sx + TW, sy + HH - hh);
-      ctx.lineTo(sx + HW, sy + TH - hh);
-      ctx.closePath(); ctx.fill();
-      // ladrillos salmón dispersos (deterministas por posición)
-      var seed = (Math.floor(sx) * 7 + Math.floor(sy) * 13) % 97;
-      if (seed % 3 === 0) {
-        ctx.fillStyle = M.PAL[M.C.LMAG];
-        ctx.fillRect(sx + 3, sy + HH - Math.floor(hh * 0.55), 3, 1);
-      }
-      if (seed % 4 === 1) {
-        ctx.fillStyle = M.PAL[M.C.LMAG];
-        ctx.fillRect(sx + HW + 2, sy + HH - Math.floor(hh * 0.3), 4, 1);
-      }
-      if (seed % 5 === 2) {
-        ctx.fillStyle = M.PAL[M.C.LMAG];
-        ctx.fillRect(sx + 4, sy + HH - Math.floor(hh * 0.8), 2, 1);
-      }
-      // tapa
+      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH);
+
+      // tapa morada plana
       ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.beginPath();
       ctx.moveTo(sx + HW, sy - hh);
@@ -243,6 +259,35 @@
       ctx.lineTo(sx + HW, sy + TH - hh);
       ctx.lineTo(sx + TW, sy + HH - hh);
       ctx.closePath(); ctx.stroke();
+    },
+
+    /* Aristas del diamante de una tesela (borde del área caminable).
+       mask: bit 1 = NW, 2 = NE, 4 = SE, 8 = SW. Canon: banda morada
+       sólida junto a los muros y en el límite del mapa. */
+    drawFloorEdge: function (ctx, sx, sy, mask) {
+      if (!mask) return;
+      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (mask & 1) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + 0.5, sy + HH); }
+      if (mask & 2) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + TW - 0.5, sy + HH); }
+      if (mask & 4) { ctx.moveTo(sx + TW - 0.5, sy + HH); ctx.lineTo(sx + HW, sy + TH - 0.5); }
+      if (mask & 8) { ctx.moveTo(sx + 0.5, sy + HH); ctx.lineTo(sx + HW, sy + TH - 0.5); }
+      ctx.stroke();
+    },
+
+    // tesela vecina (null = fuera del mapa: también cierra el borde)
+    edgeMask: function (map, gx, gy) {
+      var m = 0;
+      var tN = this.tileAt(map, gx, gy - 1);
+      var tE = this.tileAt(map, gx + 1, gy);
+      var tS = this.tileAt(map, gx, gy + 1);
+      var tW = this.tileAt(map, gx - 1, gy);
+      if (!tN || tN.solid) m |= 1;
+      if (!tE || tE.solid) m |= 2;
+      if (!tS || tS.solid) m |= 4;
+      if (!tW || tW.solid) m |= 8;
+      return m;
     },
 
     /* Recorre las teselas visibles: cb(sx, sy, gx, gy, tile) */

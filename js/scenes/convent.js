@@ -23,16 +23,16 @@
           '##########################',
           '##########################',
           '########################d#',
+          '#######################.S.',
           '#######################...',
-          '#######################...',
-          '#######################...',
+          '#######################.a.',
           '#######################.o.',
           '#######################.C.',
-          '#######################...',
+          '#######################.a.',
           '#######################...',
           '#######################...',
           '#######################.C.',
-          '#######################...',
+          '#######################.a.',
           '#######################...',
           '#######################...',
           '#######################.C.',
@@ -45,11 +45,13 @@
           '##########################'
         ],
         legend: {
-          '#': { floor: null, solid: true, block: 'wall' },
+          '#': { floor: null, solid: true, block: 'wall', hh: 20 },
           '.': { floor: 'stone' },
           'C': { floor: 'stone', solid: true, deco: 'column' },
-          'd': { floor: null, solid: true, block: 'wall', deco: 'door' },
-          'w': { floor: null, solid: true, block: 'wall', deco: 'window' }
+          'a': { floor: 'stone', deco: 'arch' },
+          'S': { floor: 'stone', deco: 'stairs' },
+          'd': { floor: null, solid: true, block: 'wall', hh: 20, deco: 'door' },
+          'w': { floor: null, solid: true, block: 'wall', hh: 20, deco: 'window' }
         }
       },
       playerStart: { x: 3, y: 20 },
@@ -77,6 +79,7 @@
     var scene = {
       world: world,
       card: { scene: 'ESCENA 4', title: 'LOS PASILLOS', sub: 'SILENTIUM', hold: 2.4 },
+      motto: true,   // lema latino diagonal (canon de la cámara isométrica)
       phase: skipIntro ? 'stealth' : 'intro',
       hideTriggered: false,
       doorOpened: false,

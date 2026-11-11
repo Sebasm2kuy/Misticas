@@ -9,22 +9,23 @@ window.MISTICAS = window.MISTICAS || {};
 
 (function (M) {
 
-  // Resolución base (estilo Amstrad/Spectrum). El juego arranca con
-  // esta resolución y main.js la EXTIENDE en vivo (_resize) para
-  // ocupar el 100% de la pantalla: en escritorio con factor de píxel
-  // entero (nitidez 1:1) y en móvil con escala continua. Todo el
-  // motor dibuja leyendo M.SCREEN_W / M.SCREEN_H en tiempo real.
+  // Resolución lógica INTERNA FIJA (4:3, monitor de 1987): 320x240.
+  // Todo el juego (mundo + HUD + textos) se dibuja SIEMPRE dentro de
+  // este lienzo virtual: el HUD jamás queda fuera del marco. main.js
+  // solo la ESCALA al tamaño de la ventana con letterbox (fit-contain,
+  // barras negras) y coloca los controles táctiles fuera del tubo.
   M.SCREEN_W = 320;
-  M.SCREEN_H = 200;
-  M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 30 px)
-  M.VIEW_H = M.SCREEN_H - M.HUD_H; // alto de mundo visible (se recalcula)
+  M.SCREEN_H = 240;
+  M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 32 px)
+  M.VIEW_H = M.SCREEN_H - M.HUD_H; // alto de mundo visible: 204 px
 
-  // Móvil en vertical: el mundo llena el alto máximo y la cámara se
-  // estrecha. Suelo de ancho interno para que el HUD compacto y los
-  // textos sigan siendo legibles (24 caracteres por línea).
-  M.MIN_VIEW_W = 144;
+  // Reserva de banda superior/inferior para los controles táctiles
+  // cuando las barras del letterbox no dan espacio de sobra.
+  M.TOUCH_TOP = 48;
+  M.TOUCH_BOTTOM_WIDE = 64;   // controles a los lados (banda lateral holgada)
+  M.TOUCH_BOTTOM_TALL = 110;  // controles apilados abajo (móvil en vertical)
 
-  // ¿La resolución interna es estrecha? (HUD compacto, textos partidos)
+  // ¿La resolución interna es estrecha? (legacy: ahora es fija y ancha)
   M.isNarrow = function () { return M.SCREEN_W < 240; };
 
   // Rejilla isométrica

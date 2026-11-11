@@ -20,7 +20,7 @@
 </head>
 <body>
   <div id="crt" role="img" aria-label="MÍSTICAS, juego de terror retro de 1987">
-    <canvas id="game" width="320" height="200"></canvas>
+    <canvas id="game" width="320" height="240"></canvas>
     <div id="roll"></div>
     <div id="scan"></div>
     <div id="grille"></div>
@@ -28,8 +28,9 @@
     <div id="flick"></div>
   </div>
 
-  <!-- Controles táctiles (visibles en pantallas táctiles y tras el primer toque):
-       anclados a los bordes, con márgenes seguros, sin estorbar la vista -->
+  <!-- Controles táctiles: viven en las bandas negras del letterbox
+       (PAUSA y AUDIO arriba; cruceta y FUEGO abajo), nunca sobre el
+       tubo ni sobre el HUD. main.js los recoloca al redimensionar. -->
   <div id="touch">
     <!-- Botones de sistema: pausa y audio, siempre accesibles -->
     <div class="tbtn tsys" data-k="pause" id="t-pause" role="button" aria-label="Pausa">II</div>

@@ -164,11 +164,15 @@
       ctx.globalAlpha = 1;
     },
 
-    /* ---------- HUD inferior (canon de las capturas reales) ----------
-       Izquierda: 5 corazones (rojo vivo, contorno sangre, medios).
-       Centro: marco NEXUS CUM NUMINE con doble borde (morado
-       exterior, línea carmesí interior) y barra de progreso salmón.
-       Derecha: 3 slots con borde morado y el número debajo. */
+    /* ---------- HUD inferior (canon exacto de las capturas reales) ----------
+       Izquierda: 5 corazones (rojo vivo, contorno sangre, medios),
+       alineados en vertical con los slots de la derecha.
+       Centro: marco NEXUS CUM NUMINE de doble borde (morado exterior,
+       línea carmesí interior, muescas salmón) con tipografía gótica
+       GRUESA en rojo (doble trazo + sombra, como la inscripción del
+       canon) y barra de progreso salmón debajo del texto.
+       Derecha: 3 slots con borde morado y el número debajo.
+       Todo cabe SIEMPRE dentro del lienzo fijo 320x240. */
     drawHUD: function (ctx, game, t) {
       var W = M.SCREEN_W;
       var y0 = M.SCREEN_H - M.HUD_H;
@@ -181,8 +185,8 @@
 
       var Spr = M.Spr, i;
 
-      // -- corazones de vida (5, con medios) --
-      var hx = 8, hy = M.isNarrow() ? y0 + 6 : y0 + 14;
+      // -- corazones de vida (5, con medios), en la fila de los slots --
+      var hx = 8, hy = y0 + 13;
       for (i = 0; i < 5; i++) {
         var full = game.hearts >= i + 1;
         var half = !full && game.hearts >= i + 0.5;
@@ -216,35 +220,8 @@
       // slot 3: vacío (0)
       F.draw(ctx, '0', s3 + 7, sY + sS + 3, M.C.BONE2);
 
-      if (M.isNarrow()) {
-        // ---- HUD COMPACTO (móvil vertical): el marco NEXUS no cabe
-        //      entero; segunda fila con etiqueta corta y barra limpia ----
-        var nY = y0 + 25;
-        var labelColor2 = game.nexusFlag > 0 ? M.C.LMAG : M.C.CRIM;
-        F.draw(ctx, 'NEXUS', 6, nY + 1, labelColor2);
-        var nBarX = 40, nBarW = W - 68;
-        ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(nBarX, nY, nBarW, 5);
-        var nFill = Math.round(nBarW * Math.min(1, game.nexus / 100));
-        ctx.fillStyle = M.PAL[M.C.LMAG];
-        ctx.fillRect(nBarX, nY, nFill, 5);
-        if (game.nexus > 0 && game.nexus < 100) {
-          ctx.fillStyle = M.PAL[M.C.BONE2];
-          ctx.fillRect(nBarX + nFill - 1, nY, 1, 5);
-        }
-        ctx.strokeStyle = M.PAL[M.C.PURP];
-        ctx.lineWidth = 1;
-        ctx.strokeRect(nBarX - 0.5, nY - 0.5, nBarW + 1, 6);
-        for (i = 1; i < 5; i++) {
-          ctx.fillStyle = M.PAL[M.C.DPURP];
-          ctx.fillRect(nBarX + Math.round(nBarW * i / 5), nY + 4, 1, 1);
-        }
-        F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', W - 24, nY - 1, M.C.BONE2);
-        return;
-      }
-
       // -- marco central NEXUS CUM NUMINE (doble borde, centrado) --
-      var bw = 152, bx = Math.round(W / 2 - bw / 2), by = y0 + 3, bh = 30;
+      var bw = 160, bx = Math.round(W / 2 - bw / 2), by = y0 + 2, bh = 32;
       ctx.strokeStyle = M.PAL[M.C.PURP];
       ctx.lineWidth = 2;
       ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
@@ -256,11 +233,12 @@
       ctx.fillRect(bx - 1, by + 1, 2, 2); ctx.fillRect(bx + bw - 1, by + 1, 2, 2);
       ctx.fillRect(bx - 1, by + bh - 3, 2, 2); ctx.fillRect(bx + bw - 1, by + bh - 3, 2, 2);
 
-      var labelColor = game.nexusFlag > 0 ? M.C.LMAG : M.C.CRIM;
-      F.drawCentered(ctx, 'NEXUS CUM NUMINE', bx + bw / 2, by + 6, labelColor, { spacing: 1 });
+      // tipografía gótica gruesa: rojo claro con doble trazo y sombra
+      var hot = game.nexusFlag > 0;
+      this._gothicCentered(ctx, 'NEXUS CUM NUMINE', bx + bw / 2, by + 8, hot ? M.C.LCRIM : M.C.CRIM);
 
       // barra de progreso continua (relleno salmón, borde morado)
-      var barW = bw - 22, barX = bx + 11, barY = by + 19;
+      var barW = bw - 24, barX = bx + 12, barY = by + 23;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(barX, barY, barW, 5);
       var fillW = Math.round(barW * Math.min(1, game.nexus / 100));
@@ -278,7 +256,6 @@
         ctx.fillStyle = M.PAL[M.C.DPURP];
         ctx.fillRect(barX + Math.round(barW * i / 5), barY + 4, 1, 1);
       }
-      F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', barX + barW + 3, barY, M.C.BONE2);
 
       // silencio (esquina del HUD)
       if (M.Audio.muted) {
@@ -298,6 +275,52 @@
       ctx.fillRect(x, y, 1, 3);
       ctx.fillRect(x + s - 3, y + s - 1, 3, 1);
       ctx.fillRect(x + s - 1, y + s - 3, 1, 3);
+    },
+
+    /* Tipografía gótica gruesa del canon (estilo D validado):
+       contorno ORTOGONAL en sangre (engorda sin cerrar los canales
+       diagonales de la M) + sombra negra diagonal de profundidad +
+       cuerpo principal en rojo. Como la inscripción "NEXUS CUM
+       NUMINE" de la captura real: pesada, gótica y LEGIBLE. */
+    _gothic: function (ctx, text, x, y, color, opts) {
+      opts = opts || {};
+      F.draw(ctx, text, x + 1, y + 2, M.C.BLACK, opts);
+      F.draw(ctx, text, x, y + 1, M.C.BLOOD, opts);
+      F.draw(ctx, text, x, y - 1, M.C.BLOOD, opts);
+      F.draw(ctx, text, x - 1, y, M.C.BLOOD, opts);
+      F.draw(ctx, text, x + 1, y, M.C.BLOOD, opts);
+      F.draw(ctx, text, x, y, color, opts);
+    },
+
+    _gothicCentered: function (ctx, text, cx, y, color) {
+      var o = { spacing: 1, align: 'center' };
+      F.draw(ctx, text, cx + 1, y + 2, M.C.BLACK, o);
+      F.draw(ctx, text, cx, y + 1, M.C.BLOOD, o);
+      F.draw(ctx, text, cx, y - 1, M.C.BLOOD, o);
+      F.draw(ctx, text, cx - 1, y, M.C.BLOOD, o);
+      F.draw(ctx, text, cx + 1, y, M.C.BLOOD, o);
+      F.draw(ctx, text, cx, y, color, o);
+    },
+
+    /* Lema latino diagonal (canon de la cámara isométrica): dos líneas
+       rojas inclinadas y temblorosas en la esquina superior izquierda
+       del mundo. Se muestra al llegar al interior del convento,
+       nunca en el cementerio ni en el cielo. */
+    drawMotto: function (ctx) {
+      ctx.globalAlpha = 0.8;
+      this._diagonal(ctx, 'VT COR SANCTAE ATTINGAS,', 12, 14);
+      this._diagonal(ctx, 'EIVS OCULIS SPECTA', 30, 42);
+      ctx.globalAlpha = 1;
+    },
+
+    _diagonal: function (ctx, text, x, y) {
+      for (var i = 0; i < text.length; i++) {
+        var ch = text.charAt(i);
+        if (ch !== ' ') {
+          F.draw(ctx, ch, Math.round(x), Math.round(y), M.C.LCRIM, { jitter: 1 });
+        }
+        x += 6; y += 1;
+      }
     }
   };
 

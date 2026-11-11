@@ -154,6 +154,18 @@
           Spr.draw(ctx, Spr.S.column, sx - 6, sy - 22);
         }});
         break;
+      case 'arch':
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.preload();
+          ctx.drawImage(Spr.archCanvas, Math.round(sx - 12), Math.round(sy - 30));
+        }});
+        break;
+      case 'stairs':
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.preload();
+          ctx.drawImage(Spr.stairsCanvas, Math.round(sx - 18), Math.round(sy - 24));
+        }});
+        break;
     }
   };
 
@@ -281,6 +293,16 @@
       if (tile && tile.floor) Iso.drawFloorTile(ctx, tile.floor, sx, sy, gx, gy);
     });
 
+    // borde perimetral del area caminable (canon: banda morada solida
+    // junto a los muros y en el limite del mapa, como el suelo de la
+    // camara de arcos de la captura real)
+    Iso.forEachVisible(this.map, this.cam, M.SCREEN_W, M.VIEW_H, function (sx, sy, gx, gy, tile) {
+      if (tile && tile.floor) {
+        var mask = Iso.edgeMask(self.map, gx, gy);
+        if (mask) Iso.drawFloorEdge(ctx, sx, sy, mask);
+      }
+    });
+
     // cono de visión de la hermana (sobre la oscuridad, bajo el HUD)
     var self2 = this;
 
@@ -289,9 +311,9 @@
 
     Iso.forEachVisible(this.map, this.cam, M.SCREEN_W, M.VIEW_H, function (sx, sy, gx, gy, tile) {
       if (tile && tile.block === 'wall') {
-        (function (sx2, sy2, gx2, gy2) {
-          items.push({ d: gx2 + gy2, fn: function () { Iso.drawWall(ctx, sx2, sy2, 13); } });
-        })(sx, sy, gx, gy);
+        (function (sx2, sy2, tile2) {
+          items.push({ d: gx + gy, fn: function () { Iso.drawWall(ctx, sx2, sy2, (tile2 && tile2.hh) || 13); } });
+        })(sx, sy, tile);
       }
     });
 

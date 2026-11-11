@@ -209,68 +209,121 @@
       requestAnimationFrame(loop);
     },
 
-    /* Pantalla completa real, sin cajita:
-       - Escritorio: factor de pixel ENTERO (nitidez 1:1) y la
-         resolución interna del lienzo se EXTIEDE para cubrir el
-         100% del monitor (la cámara simplemente muestra más mundo).
-       - Móvil horizontal: escala fraccional que aprovecha todo el
-         ancho/alto útil sin recortes ni distorsión.
-       - Móvil VERTICAL: el alto interno es el alto máximo del mundo
-         (320) y el ancho interno se estrecha: la cámara sigue al
-         jugador y el tubo queda a sangre completa (100% x 100%)
-         con píxel gordo auténtico. Solo en ventanas ultra estrechas
-         quedan bandas mínimas. */
+    /* Viewport con letterbox 4:3 (canon de las capturas reales):
+       el juego vive en un lienzo lógico FIJO de 320x240 — como el
+       monitor de 1987 — y se escala a la ventana con fit-contain:
+       factor entero en escritorio (nitidez 1:1), barras negras donde
+       haga falta. NUNCA se estira ni se recorta: el HUD completo y
+       todos los textos quedan SIEMPRE dentro del marco visible.
+       En pantallas táctiles se reservan una banda superior (PAUSA y
+       AUDIO) y una inferior (cruceta y FUEGO) para que los controles
+       caigan FUERA del tubo, sin pisar el HUD ni la vista. */
     _resize: function () {
-      var BASE_W = 320, BASE_H = 200;
-      var MAX_W = 512, MAX_H = 320;   // límites del motor (tamaño de mapas)
-      var vw = Math.max(240, window.innerWidth);
-      var vh = Math.max(160, window.innerHeight);
+      var BW = 320, BH = 240;   // lienzo lógico fijo (4:3 exacto)
+      var vw = Math.max(200, window.innerWidth);
+      var vh = Math.max(150, window.innerHeight);
+      var touch = document.body.classList.contains('touch') ||
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
-      var s, cw, ch;
+      // factor que quepa entero (fit-contain, sin estirar)
+      var s = Math.min(vw / BW, vh / BH);
 
-      if (vh > vw * 1.15) {
-        // ---- retrato: llenar el 100% del alto con el mundo completo ----
-        s = vh / MAX_H;
-        cw = Math.ceil(vw / s);
-        if (cw < M.MIN_VIEW_W) {
-          // ventana ultra estrecha: mantener el suelo legible y
-          // bajar el factor para no recortar el ancho
-          cw = M.MIN_VIEW_W;
-          s = vw / cw;
-        }
-        ch = MAX_H;
-        if (cw > MAX_W) cw = MAX_W;
-      } else {
-        // ---- escritorio / landscape ----
-        // factor de píxel: entero y grande en escritorio; en pantallas
-        // pequeñas (móvil) fraccional para llenar toda la pantalla
-        s = Math.min(vw / BASE_W, vh / BASE_H);
-        if (s >= 2) s = Math.floor(s);
-        if (s < 0.75) s = 0.75;
-
-        // resolución interna que cubre toda la ventana con ese factor
-        var wantW = Math.ceil(vw / s);
-        var wantH = Math.ceil(vh / s);
-        cw = Math.min(wantW, MAX_W);
-        ch = Math.min(wantH, MAX_H);
+      var needT = 0, needB = 0;
+      if (touch) {
+        // ¿las barras del letterbox dan margen de sobra?
+        var sideBand = (vw - BW * s) / 2;
+        var bottomBand = (vh - BH * s) / 2;
+        needT = M.TOUCH_TOP;                                    // 48
+        needB = (sideBand >= 150 && bottomBand >= 40)
+          ? M.TOUCH_BOTTOM_WIDE    // 64: controles a los lados y abajo
+          : M.TOUCH_BOTTOM_TALL;   // 110: controles apilados abajo
+        s = Math.min(vw / BW, (vh - needT - needB) / BH);
       }
 
-      // CSS al 100% salvo cuando el límite interno recorta
-      var cssW = Math.min(vw, Math.round(cw * s));
-      var cssH = Math.min(vh, Math.round(ch * s));
+      // nitidez 1:1 en pantallas grandes (factor entero)
+      if (s >= 2) s = Math.floor(s);
+      if (s < 0.4) s = 0.4;
 
-      this.canvas.width = cw;
-      this.canvas.height = ch;
-      this.canvas.style.width = cssW + 'px';
-      this.canvas.style.height = cssH + 'px';
+      var cw = Math.round(BW * s);
+      var ch = Math.round(BH * s);
+
+      // posición vertical: en táctil, el tubo queda a la altura de la
+      // vista y el sobrante se va abajo (donde van los controles)
+      var top;
+      if (touch) {
+        var freeV = Math.max(0, vh - needT - needB - ch);
+        top = Math.round(needT + freeV * 0.3);
+      } else {
+        top = Math.round((vh - ch) / 2);
+      }
+      if (top < 0) top = 0;
+      if (top + ch > vh) top = Math.max(0, vh - ch);
+      var left = Math.round((vw - cw) / 2);
+
+      this.canvas.style.position = 'absolute';
+      this.canvas.style.left = left + 'px';
+      this.canvas.style.top = top + 'px';
+      this.canvas.style.width = cw + 'px';
+      this.canvas.style.height = ch + 'px';
+
+      // el lienzo lógico NUNCA cambia: 320x240, cero recortes
+      this.canvas.width = BW;
+      this.canvas.height = BH;
       this.ctx.imageSmoothingEnabled = false;
 
-      // el motor entero dibuja con estas dimensiones en vivo
-      M.SCREEN_W = cw;
-      M.SCREEN_H = ch;
-      M.VIEW_H = ch - M.HUD_H;
+      M.SCREEN_W = BW;
+      M.SCREEN_H = BH;
+      M.VIEW_H = BH - M.HUD_H;
 
+      this._layoutTouch(touch);
       this._syncAudioBtn();
+    },
+
+    /* Coloca los botones táctiles SIEMPRE fuera del tubo: arriba en
+       la banda superior (PAUSA y AUDIO) y abajo en la inferior (cruceta
+       a la izquierda, FUEGO a la derecha). Como _resize reserva esas
+       bandas, jamás pisan el HUD ni la vista del mundo. */
+    _layoutTouch: function (touch) {
+      if (!touch) return;   // sin táctil no hay nada que recolocar
+      var vw = window.innerWidth;
+      var sa = this._safeAreas();
+      var small = vw < 420;
+      var size = small ? 48 : 44;
+      var gap = 3;
+
+      function pos(id, o) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.style.left = (o.left !== undefined) ? o.left + 'px' : '';
+        el.style.right = (o.right !== undefined) ? o.right + 'px' : '';
+        el.style.top = (o.top !== undefined) ? o.top + 'px' : '';
+        el.style.bottom = (o.bottom !== undefined) ? o.bottom + 'px' : '';
+      }
+
+      // botones de sistema: banda superior
+      pos('t-pause', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) });
+      pos('t-audio', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) + 54 });
+
+      // cruceta: banda inferior izquierda (arriba = hueco central)
+      var bx = Math.max(6, sa.left);
+      var by = Math.max(8, sa.bottom);
+      pos('t-left',  { left: bx,                     bottom: by });
+      pos('t-right', { left: bx + 2 * (size + gap),  bottom: by });
+      pos('t-up',    { left: bx + size + gap,        bottom: by + size + gap });
+      pos('t-down',  { left: bx + size + gap,        bottom: by });
+
+      // FUEGO: banda inferior derecha
+      pos('t-fire', { right: Math.max(14, sa.right), bottom: Math.max(6, sa.bottom) });
+    },
+
+    // márgenes seguros (móviles con muesca) en px
+    _safeAreas: function () {
+      var cs = getComputedStyle(document.documentElement);
+      function px(name) {
+        var v = parseFloat(cs.getPropertyValue(name));
+        return isNaN(v) ? 0 : v;
+      }
+      return { top: px('--sat'), right: px('--sar'), bottom: px('--sab'), left: px('--sal') };
     },
 
     // refleja el estado de silencio en el botón táctil de audio
@@ -428,6 +481,8 @@
         if (this.scene.hud !== false) {
           M.UI.drawHUD(ctx, this.state, this.time);
         }
+        // lema latino diagonal: solo dentro del convento (canon)
+        if (this.scene.motto) M.UI.drawMotto(ctx);
       }
 
       M.UI.drawDialog(ctx, this.time);
