@@ -52,8 +52,14 @@ El juego ocupa el **100% de la ventana** (sin cajita ni marcos):
 - **Escritorio:** factor de píxel entero (nitidez 1:1); la resolución
   interna del lienzo se extiende para cubrir todo el monitor y la
   cámara simplemente muestra más mundo.
-- **Móvil:** escala continua que aprovecha todo el ancho/alto útil
-  sin recortes extraños ni distorsión.
+- **Móvil horizontal:** escala continua que aprovecha todo el
+  ancho/alto útil sin recortes extraños ni distorsión.
+- **Móvil vertical:** el alto interno del mundo se muestra completo
+  (320 px) y la cámara se estrecha siguiendo al jugador: el tubo
+  queda a sangre completa (100% × 100%) con píxel gordo auténtico.
+  El HUD cambia a formato compacto (corazones y slots arriba,
+  barra NEXUS debajo) y los textos largos se parten en líneas que
+  caben en el lienzo estrecho.
 - El HUD se ancla a los bordes (corazones a la izquierda, marco
   NEXUS centrado, slots a la derecha) en cualquier resolución.
 

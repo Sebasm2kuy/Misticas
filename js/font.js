@@ -151,6 +151,55 @@
       opts = opts || {};
       opts.align = 'center';
       this.draw(ctx, text, cx, y, color, opts);
+    },
+
+    /* Centrado a prueba de cualquier resolución:
+       1) si cabe con la escala pedida, se dibuja tal cual;
+       2) si no cabe y la escala es >1, se reduce la escala;
+       3) si aun no cabe, se parte en varias lineas centradas.
+       Devuelve la Y inmediatamente inferior a la ultima linea. */
+    drawCenteredFit: function (ctx, text, cx, y, color, opts) {
+      opts = opts || {};
+      var t = String(text);
+      var scale = opts.scale || 1;
+      var spacing = opts.spacing || 0;
+      var maxW = (opts.maxW || M.SCREEN_W) - 8;
+      var lh = 7 * scale + 3;
+      var w = this.measure(t, scale) + spacing * Math.max(0, t.length - 1);
+      if (w > maxW && scale > 1) {
+        // rebajar escala antes de partir en lineas
+        for (var sc = scale - 1; sc >= 1; sc--) {
+          w = this.measure(t, sc) + spacing * Math.max(0, t.length - 1);
+          if (w <= maxW) { scale = sc; break; }
+        }
+        if (w > maxW) scale = 1;
+        lh = 7 * scale + 3;
+      }
+      var fits = this.measure(t, scale) + spacing * Math.max(0, t.length - 1) <= maxW;
+      if (fits) {
+        var o = {}; for (var k in opts) o[k] = opts[k];
+        o.scale = scale; o.align = 'center';
+        this.draw(ctx, t, cx, y, color, o);
+        return y + lh;
+      }
+      // partir en lineas que quepan y centrarlas
+      var maxChars = Math.max(6, Math.floor((maxW + scale) / (this.STEP * scale + spacing)));
+      var words = t.split(' '), lines = [], cur = '';
+      for (var i = 0; i < words.length; i++) {
+        if ((cur + ' ' + words[i]).trim().length > maxChars) {
+          if (cur) lines.push(cur.trim());
+          cur = words[i];
+        } else cur += ' ' + words[i];
+      }
+      if (cur.trim()) lines.push(cur.trim());
+      var o2 = {}; for (var k2 in opts) o2[k2] = opts[k2];
+      o2.scale = scale; o2.align = 'center';
+      var yy = y;
+      for (var l = 0; l < lines.length; l++) {
+        this.draw(ctx, lines[l], cx, yy, color, o2);
+        yy += lh;
+      }
+      return yy;
     }
   };
 

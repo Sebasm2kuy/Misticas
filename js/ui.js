@@ -18,9 +18,12 @@
     init: function () { F = M.Font; },
 
     /* ---------- caja de texto ---------- */
+    // El ancho de línea se calcula con la resolución real: en móvil
+    // vertical (lienzo estrecho) el texto se parte en más líneas.
     say: function (who, text, opts) {
       opts = opts || {};
-      var lines = this._wrap(text, 48);
+      var wrapN = Math.max(14, Math.floor((M.SCREEN_W - 24) / 6));
+      var lines = this._wrap(text, wrapN);
       this.dialog = {
         who: who || null,
         lines: lines,
@@ -80,7 +83,11 @@
       var d = this.dialog;
       if (!d) return;
       var W = M.SCREEN_W;
-      var bx = 4, by = M.VIEW_H - 42, bw = W - 8, bh = 38;
+      // ventana de 3 líneas: la caja crece con el que habla y se
+      // desplaza cuando el texto partido ocupa más líneas
+      var shown = Math.min(3, d.lines.length);
+      var bh = 12 + (d.who ? 10 : 0) + shown * 10 + 6;
+      var bx = 4, by = M.VIEW_H - bh - 4, bw = W - 8;
       ctx.globalAlpha = 0.94;
       ctx.fillStyle = M.PAL[M.C.VDARK];
       ctx.fillRect(bx, by, bw, bh);
@@ -97,10 +104,11 @@
       }
       var color = d.latin ? M.C.LCRIM : M.C.BONE;
       var jitter = d.latin ? 1 : 0;
-      for (var i = 0; i <= d.li; i++) {
-        var shown = (i < d.li) ? d.lines[i] : d.lines[i].substring(0, Math.floor(d.ci));
-        if (shown) {
-          F.draw(ctx, shown, bx + 8, ty + i * 10, color, { jitter: jitter });
+      var from = Math.max(0, Math.min(d.li - (shown - 1), d.lines.length - shown));
+      for (var i = from; i <= d.li; i++) {
+        var txt = (i < d.li) ? d.lines[i] : d.lines[i].substring(0, Math.floor(d.ci));
+        if (txt) {
+          F.draw(ctx, txt, bx + 8, ty + (i - from) * 10, color, { jitter: jitter });
         }
       }
       if (d.done && Math.sin(t * 7) > -0.2) {
@@ -127,11 +135,12 @@
       var W = M.SCREEN_W;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, 0, W, M.SCREEN_H);
-      F.drawCentered(ctx, c.title, W / 2, 76, M.C.BONE, { scale: 2, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, spacing: 2 });
+      // el título rebaja escala o se parte en líneas si el lienzo es estrecho
+      var ty = F.drawCenteredFit(ctx, c.title, W / 2, 76, M.C.BONE, { scale: 2, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, spacing: 2 });
       if (c.sub) {
-        F.drawCentered(ctx, c.sub, W / 2, 102, M.C.CRIM, { scale: 1, spacing: 2 });
+        F.drawCenteredFit(ctx, c.sub, W / 2, Math.max(102, ty + 12), M.C.CRIM, { scale: 1, spacing: 2 });
       }
-      F.drawCentered(ctx, '· ' + c.scene + ' ·', W / 2, 118, M.C.BONE2, { scale: 1 });
+      F.drawCenteredFit(ctx, '· ' + c.scene + ' ·', W / 2, 118, M.C.BONE2, { scale: 1 });
     },
 
     /* ---------- pista de controles ---------- */
@@ -151,7 +160,7 @@
       var W = M.SCREEN_W;
       var a = h.t < 0.3 ? h.t / 0.3 : (h.t > h.dur - 0.6 ? (h.dur - h.t) / 0.6 : 1);
       ctx.globalAlpha = a * (0.75 + Math.sin(t * 4) * 0.15);
-      F.drawCentered(ctx, h.text, W / 2, M.VIEW_H - 50, M.C.BONE2);
+      F.drawCenteredFit(ctx, h.text, W / 2, M.VIEW_H - 50, M.C.BONE2);
       ctx.globalAlpha = 1;
     },
 
@@ -173,7 +182,7 @@
       var Spr = M.Spr, i;
 
       // -- corazones de vida (5, con medios) --
-      var hx = 8, hy = y0 + 14;
+      var hx = 8, hy = M.isNarrow() ? y0 + 6 : y0 + 14;
       for (i = 0; i < 5; i++) {
         var full = game.hearts >= i + 1;
         var half = !full && game.hearts >= i + 0.5;
@@ -189,6 +198,49 @@
           Spr.draw(ctx, Spr.S.heartFull, hx + i * 11, hy);
           ctx.restore();
         }
+      }
+
+      // -- 3 slots de objetos (anclados a la derecha, número debajo) --
+      var sY = y0 + 4, sS = 18;
+      var s1 = W - 66, s2 = W - 44, s3 = W - 22;
+      this._slotFrame(ctx, s1, sY, sS);
+      this._slotFrame(ctx, s2, sY, sS);
+      this._slotFrame(ctx, s3, sY, sS);
+      // slot 1: vela (parpadeo)
+      var cf = (Math.floor(t * 5) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
+      Spr.draw(ctx, cf, s1 + 6, sY + 4);
+      F.draw(ctx, '' + game.candles, s1 + 8, sY + sS + 3, M.C.LMAG);
+      // slot 2: libro
+      Spr.draw(ctx, Spr.S.bookA, s2 + 3, sY + 7);
+      F.draw(ctx, '' + game.book, s2 + 6, sY + sS + 3, M.C.LMAG);
+      // slot 3: vacío (0)
+      F.draw(ctx, '0', s3 + 7, sY + sS + 3, M.C.BONE2);
+
+      if (M.isNarrow()) {
+        // ---- HUD COMPACTO (móvil vertical): el marco NEXUS no cabe
+        //      entero; segunda fila con etiqueta corta y barra limpia ----
+        var nY = y0 + 25;
+        var labelColor2 = game.nexusFlag > 0 ? M.C.LMAG : M.C.CRIM;
+        F.draw(ctx, 'NEXUS', 6, nY + 1, labelColor2);
+        var nBarX = 40, nBarW = W - 68;
+        ctx.fillStyle = M.PAL[M.C.BLACK];
+        ctx.fillRect(nBarX, nY, nBarW, 5);
+        var nFill = Math.round(nBarW * Math.min(1, game.nexus / 100));
+        ctx.fillStyle = M.PAL[M.C.LMAG];
+        ctx.fillRect(nBarX, nY, nFill, 5);
+        if (game.nexus > 0 && game.nexus < 100) {
+          ctx.fillStyle = M.PAL[M.C.BONE2];
+          ctx.fillRect(nBarX + nFill - 1, nY, 1, 5);
+        }
+        ctx.strokeStyle = M.PAL[M.C.PURP];
+        ctx.lineWidth = 1;
+        ctx.strokeRect(nBarX - 0.5, nY - 0.5, nBarW + 1, 6);
+        for (i = 1; i < 5; i++) {
+          ctx.fillStyle = M.PAL[M.C.DPURP];
+          ctx.fillRect(nBarX + Math.round(nBarW * i / 5), nY + 4, 1, 1);
+        }
+        F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', W - 24, nY - 1, M.C.BONE2);
+        return;
       }
 
       // -- marco central NEXUS CUM NUMINE (doble borde, centrado) --
@@ -227,22 +279,6 @@
         ctx.fillRect(barX + Math.round(barW * i / 5), barY + 4, 1, 1);
       }
       F.draw(ctx, Math.min(100, Math.round(game.nexus)) + '%', barX + barW + 3, barY, M.C.BONE2);
-
-      // -- 3 slots de objetos (anclados a la derecha, número debajo) --
-      var sY = y0 + 4, sS = 18;
-      var s1 = W - 66, s2 = W - 44, s3 = W - 22;
-      this._slotFrame(ctx, s1, sY, sS);
-      this._slotFrame(ctx, s2, sY, sS);
-      this._slotFrame(ctx, s3, sY, sS);
-      // slot 1: vela (parpadeo)
-      var cf = (Math.floor(t * 5) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
-      Spr.draw(ctx, cf, s1 + 6, sY + 4);
-      F.draw(ctx, '' + game.candles, s1 + 8, sY + sS + 3, M.C.LMAG);
-      // slot 2: libro
-      Spr.draw(ctx, Spr.S.bookA, s2 + 3, sY + 7);
-      F.draw(ctx, '' + game.book, s2 + 6, sY + sS + 3, M.C.LMAG);
-      // slot 3: vacío (0)
-      F.draw(ctx, '0', s3 + 7, sY + sS + 3, M.C.BONE2);
 
       // silencio (esquina del HUD)
       if (M.Audio.muted) {

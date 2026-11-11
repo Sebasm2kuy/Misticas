@@ -78,45 +78,53 @@
           ctx.fillRect(gx, gy, 3, 2);
         }
 
-        // el gran árbol a la izquierda
+        // el gran árbol a la izquierda (en vertical entra parcialmente
+        // en cuadro: composición de primer plano)
         var tr = M.Spr.bigTree;
-        ctx.drawImage(tr.canvas, 14, y(118) - 112);
+        var treeX = M.isNarrow() ? -26 : 14;
+        ctx.drawImage(tr.canvas, treeX, y(118) - 112);
         for (var i = 0; i < tr.tips.length; i++) {
           var tp = tr.tips[i];
           if (Math.sin(t * (1.3 + i * 0.4) + i * 2) > 0.35) {
             ctx.fillStyle = M.PAL[M.C.MAG];
-            ctx.fillRect(14 + tp.x, y(118) - 112 + tp.y, 1, 1);
+            ctx.fillRect(treeX + tp.x, y(118) - 112 + tp.y, 1, 1);
           }
         }
 
-        // silueta del convento, anclada a la derecha
-        var kx = W - 114; // origen del edificio (antes 206 con W=320)
+        // silueta del convento, anclada a la derecha (comprimida en
+        // horizontal si el lienzo es estrecho, misma técnica 8 bits)
+        var convSx = M.isNarrow() ? 0.62 : 1;
+        var kx = W - 5 - Math.round(110 * convSx); // origen visible del edificio
+        ctx.save();
+        ctx.translate(kx, 0);
+        ctx.scale(convSx, 1);
         ctx.fillStyle = M.PAL[M.C.DARK];
-        ctx.fillRect(kx, y(62), 110, y(56));         // cuerpo
-        ctx.fillRect(kx + 26, y(34), 40, y(30));      // torre
+        ctx.fillRect(0, y(62), 110, y(56));         // cuerpo
+        ctx.fillRect(26, y(34), 40, y(30));      // torre
         ctx.fillStyle = M.PAL[M.C.DPURP];
         ctx.beginPath();                              // tejado
-        ctx.moveTo(kx + 20, y(36)); ctx.lineTo(kx + 46, y(20)); ctx.lineTo(kx + 72, y(36));
+        ctx.moveTo(20, y(36)); ctx.lineTo(46, y(20)); ctx.lineTo(72, y(36));
         ctx.closePath(); ctx.fill();
         ctx.fillStyle = M.PAL[M.C.BONE2];              // cruz
-        ctx.fillRect(kx + 45, y(10), 2, y(9));
-        ctx.fillRect(kx + 42, y(13), 8, 2);
+        ctx.fillRect(45, y(10), 2, y(9));
+        ctx.fillRect(42, y(13), 8, 2);
         // ventana encendida (fuego de vela)
         ctx.fillStyle = M.PAL[M.C.ORANG];
-        ctx.fillRect(kx + 40, y(44), 7, y(10));
+        ctx.fillRect(40, y(44), 7, y(10));
         ctx.fillStyle = M.PAL[M.C.LORAN];
-        if (Math.sin(t * 9) > 0) ctx.fillRect(kx + 42, y(46), 3, y(6));
+        if (Math.sin(t * 9) > 0) ctx.fillRect(42, y(46), 3, y(6));
         ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(kx + 43, y(44), 1, y(10));
+        ctx.fillRect(43, y(44), 1, y(10));
         // ventanucos apagados
         ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(kx + 10, y(78), 6, y(9));
-        ctx.fillRect(kx + 26, y(78), 6, y(9));
-        ctx.fillRect(kx + 56, y(78), 6, y(9));
-        ctx.fillRect(kx + 84, y(70), 6, y(9));
-        ctx.fillRect(kx + 84, y(88), 6, y(9));
+        ctx.fillRect(10, y(78), 6, y(9));
+        ctx.fillRect(26, y(78), 6, y(9));
+        ctx.fillRect(56, y(78), 6, y(9));
+        ctx.fillRect(84, y(70), 6, y(9));
+        ctx.fillRect(84, y(88), 6, y(9));
         ctx.fillStyle = M.PAL[M.C.VDARK];
-        ctx.fillRect(kx, y(116), 110, 3);
+        ctx.fillRect(0, y(116), 110, 3);
+        ctx.restore();
 
         // niebla baja
         M.FX.drawFog(ctx, t, 0.7, 0);
@@ -126,17 +134,17 @@
           M.Spr.drawFace(ctx, cx, y(92));
         }
 
-        // LOGO
+        // LOGO (la escala se rebaja sola si el lienzo es estrecho)
         var logoColor = this.flick > 0 ? M.C.LCRIM : M.C.LMAG;
-        F.drawCentered(ctx, 'MISTICAS', cx, y(40), logoColor, {
+        F.drawCenteredFit(ctx, 'MISTICAS', cx, y(40), logoColor, {
           scale: 3, shadow: M.C.CRIM, shadowDx: 2, shadowDy: 2, spacing: 3
         });
-        F.drawCentered(ctx, 'UN JUEGO MALDITO DE ' + M.YEAR, cx, y(70), M.C.BONE2, { spacing: 1 });
+        F.drawCenteredFit(ctx, 'UN JUEGO MALDITO DE ' + M.YEAR, cx, y(70), M.C.BONE2, { spacing: 1 });
 
         if (Math.sin(this.t * 3.4) > -0.25) {
-          F.drawCentered(ctx, 'PULSA UNA TECLA PARA COMENZAR', cx, y(142), M.C.BONE);
+          F.drawCenteredFit(ctx, 'PULSA UNA TECLA PARA COMENZAR', cx, y(142), M.C.BONE);
         }
-        F.drawCentered(ctx, '(C) ' + M.YEAR + ' - TODOS LOS RITOS RESERVADOS', cx, y(190), M.C.BONE2);
+        F.drawCenteredFit(ctx, '(C) ' + M.YEAR + ' - TODOS LOS RITOS RESERVADOS', cx, y(190), M.C.BONE2);
       }
     };
   };

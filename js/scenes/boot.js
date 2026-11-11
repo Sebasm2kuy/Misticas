@@ -14,6 +14,13 @@
     'CINTA 1 DE 1 ENCONTRADA'
   ];
 
+  // en móvil vertical el lienzo es estrecho: líneas de sistema cortas
+  var BOOT_LINES_NARROW = [
+    'MISTICAS 64K',
+    'AUTOR DESCONOCIDO',
+    'CINTA 1 DE 1'
+  ];
+
   M.Scenes = M.Scenes || {};
 
   M.Scenes.boot = function (game) {
@@ -52,13 +59,14 @@
             this._lb = Math.floor(this.ci);
             M.Audio.sfx.typeKey();
           }
-          var line = BOOT_LINES[this.li];
+          var sysLines = M.isNarrow() ? BOOT_LINES_NARROW : BOOT_LINES;
+          var line = sysLines[this.li];
           if (this.ci >= line.length) {
             this.lineT += dt;
             if (this.lineT > 0.4) {
               this.lineT = 0; this.ci = 0; this._lb = 0;
               this.li++;
-              if (this.li >= BOOT_LINES.length) { this.phase = 2; this.t = 0; }
+              if (this.li >= sysLines.length) { this.phase = 2; this.t = 0; }
             }
           }
         } else if (this.phase === 2) {
@@ -99,30 +107,32 @@
         var cx = Math.round(W / 2);
         function y(v) { return Math.round(v * H / 200); }
         var yy = y(24);
+        var lines = M.isNarrow() ? BOOT_LINES_NARROW : BOOT_LINES;
+        var tx = M.isNarrow() ? 6 : 22;
         if (this.phase >= 1) {
-          for (var i = 0; i < BOOT_LINES.length; i++) {
+          for (var i = 0; i < lines.length; i++) {
             if (i > this.li) break;
-            var shown = (i < this.li) ? BOOT_LINES[i] : BOOT_LINES[i].substring(0, Math.floor(this.ci));
-            if (shown) F.draw(ctx, shown, 22, yy + i * 12, M.C.BONE);
+            var shown = (i < this.li) ? lines[i] : lines[i].substring(0, Math.floor(this.ci));
+            if (shown) F.draw(ctx, shown, tx, yy + i * 12, M.C.BONE);
           }
         }
         if (this.phase === 0) {
           if (Math.sin(this.t * 4) > -0.3) {
-            F.drawCentered(ctx, 'PULSA UNA TECLA O HAZ CLIC', cx, y(96), M.C.LMAG);
+            F.drawCenteredFit(ctx, 'PULSA UNA TECLA O HAZ CLIC', cx, y(96), M.C.LMAG);
           }
-          F.drawCentered(ctx, 'MISTICAS (C) ' + M.YEAR, cx, y(150), M.C.DARK, {});
-          F.drawCentered(ctx, 'ESTE PROGRAMA CONTIENE LUZ INTERMITENTE', cx, y(164), M.C.VDARK === 1 ? M.C.BONE2 : M.C.BONE2);
+          F.drawCenteredFit(ctx, 'MISTICAS (C) ' + M.YEAR, cx, y(150), M.C.DARK, {});
+          F.drawCenteredFit(ctx, 'ESTE PROGRAMA CONTIENE LUZ INTERMITENTE', cx, y(164), M.C.VDARK === 1 ? M.C.BONE2 : M.C.BONE2);
         }
         if (this.phase === 2) {
           if (Math.sin(this.t * 6) > -0.2) {
-            F.drawCentered(ctx, 'PULSA PLAY EN LA CINTA', cx, y(96), M.C.LORAN);
+            F.drawCenteredFit(ctx, 'PULSA PLAY EN LA CINTA', cx, y(96), M.C.LORAN);
           }
         }
         if (this.phase === 3) {
-          F.drawCentered(ctx, 'CARGANDO MISTICAS...', cx, y(88), M.C.BONE);
-          F.drawCentered(ctx, 'NO APAGUES EL EQUIPO', cx, y(102), M.C.BONE2);
-          // bloques de progreso
-          var n = 18, bw = 8, total = n * (bw + 2);
+          F.drawCenteredFit(ctx, 'CARGANDO MISTICAS...', cx, y(88), M.C.BONE);
+          F.drawCenteredFit(ctx, 'NO APAGUES EL EQUIPO', cx, y(102), M.C.BONE2);
+          // bloques de progreso (menos si el lienzo es estrecho)
+          var n = Math.min(18, Math.floor((W - 10) / 10)), bw = 8, total = n * (bw + 2);
           var x0 = cx - total / 2;
           var filled = Math.floor((this.loadT / this.loadDur) * n);
           for (var b = 0; b < n; b++) {

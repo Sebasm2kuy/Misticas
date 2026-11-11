@@ -19,6 +19,14 @@ window.MISTICAS = window.MISTICAS || {};
   M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 30 px)
   M.VIEW_H = M.SCREEN_H - M.HUD_H; // alto de mundo visible (se recalcula)
 
+  // Móvil en vertical: el mundo llena el alto máximo y la cámara se
+  // estrecha. Suelo de ancho interno para que el HUD compacto y los
+  // textos sigan siendo legibles (24 caracteres por línea).
+  M.MIN_VIEW_W = 144;
+
+  // ¿La resolución interna es estrecha? (HUD compacto, textos partidos)
+  M.isNarrow = function () { return M.SCREEN_W < 240; };
+
   // Rejilla isométrica
   M.TILE_W = 16;
   M.TILE_H = 8;
