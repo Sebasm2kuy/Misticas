@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+   M I S T I C A S   —  (C) 1987 — "El juego maldito"
+   Fase 1: EL INICIO
+   Ficción sonora original: "Místicas" de Manuel Bartual
+   y Carmen Pacheco. Fan game no oficial y sin ánimo de lucro.
+   100% autocontenido: sin dependencias, sin build, sin CDN.
+   Listo para GitHub Pages.
+  ============================================================
+-->
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#000000">
+  <title>MÍSTICAS (1987) — El juego maldito</title>
+  <meta name="description" content="Versión jugable retro de Místicas, la ficción sonora de Manuel Bartual y Carmen Pacheco. Un título de culto de 1987 que nunca debió existir.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="crt" role="img" aria-label="MÍSTICAS, juego de terror retro de 1987">
+    <canvas id="game" width="320" height="200"></canvas>
+    <div id="roll"></div>
+    <div id="scan"></div>
+    <div id="grille"></div>
+    <div id="vig"></div>
+    <div id="flick"></div>
+  </div>
+
+  <!-- Controles táctiles (solo se muestran en pantallas táctiles) -->
+  <div id="touch" aria-hidden="true">
+    <div class="tbtn" data-k="up"    id="t-up"    style="left:46px;  bottom:96px;">▲</div>
+    <div class="tbtn" data-k="left"  id="t-left"  style="left:4px;   bottom:54px;">◀</div>
+    <div class="tbtn" data-k="right" id="t-right" style="left:88px;  bottom:54px;">▶</div>
+    <div class="tbtn" data-k="down"  id="t-down"  style="left:46px;  bottom:12px;">▼</div>
+    <div class="tbtn" data-k="fire"  id="t-fire"  style="right:14px; bottom:38px; width:56px; height:56px;">●</div>
+  </div>
+
+  <!-- Orden de carga: núcleo primero, escenas al final -->
+  <script src="js/config.js"></script>
+  <script src="js/font.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/iso.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/scenes/boot.js"></script>
+  <script src="js/scenes/title.js"></script>
+  <script src="js/scenes/tree.js"></script>
+  <script src="js/scenes/cemetery.js"></script>
+  <script src="js/scenes/conventext.js"></script>
+  <script src="js/scenes/convent.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
