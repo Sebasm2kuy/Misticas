@@ -2,8 +2,9 @@
 /* ============================================================
    MÍSTICAS — (C) 1987 — scenes/tree.js
    ESCENA 1 - EL ARBOL (INITIUM)
-   El niño lee bajo el árbol. Ella aparece, sin guantes, y
-   le hace una señal. El jugador toma el control y la sigue.
+   HABITACIÓN FIJA: huerta amurallada con el gran árbol en el
+   centro y un portón gótico al noreste. El niño lee bajo el
+   árbol. Ella aparece, sin guantes, y le hace una señal.
    ============================================================ */
 (function (M) {
 
@@ -13,41 +14,40 @@
 
   M.Scenes.tree = function (game) {
     var world = new M.WorldScene({
-      sky: { horizon: 92, moonX: 250 },
+      sky: { moonX: 250 },
       fog: 0.25,
       bats: true,
       windowLit: false,
       mapDef: {
+        // 15x13 — sala cerrada: muro alto al N (con portón de paso
+        // en gx=8) y al O; muro bajo al E y al S (zócalo-pedestal).
         rows: [
-          'FFFFFFFFFFFFFFFFFFFFFFFF..',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.......G.................',
-          'F.....T...................',
-          'F.........................',
-          'F........Bpppppppppppppppp',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'F.........................',
-          'FFFFFFFFFFFFFFFFFFFFFFFF..',
-          '..........................'
+          '########g######',
+          '#.......p.....l',
+          '#.......p.....l',
+          '#.......p...t.l',
+          '#.......p.....l',
+          '#..TT...p.....l',
+          '#..TT...p.....l',
+          '#....ppp.G....l',
+          '#....Bp.......l',
+          '#.............l',
+          '#.............l',
+          '#.............l',
+          'lllllllllllllll'
         ],
         legend: {
           '.': { floor: 'grass' },
           'p': { floor: 'path' },
-          'F': { floor: 'grass', solid: true, deco: 'fence' }
+          '#': { floor: null, solid: true, block: 'wall', hh: 14 },
+          'l': { floor: null, solid: true, block: 'wall', hh: 7 },
+          'g': { floor: 'path', deco: 'gate' }
         }
       },
-      playerStart: { x: 9, y: 10 },
+      playerStart: { x: 5.5, y: 8.5 },
       girl: {
-        x: 8, y: 7, startState: 'hidden',
-        waypoints: [{ x: 11, y: 7 }, { x: 11, y: 10 }, { x: 23, y: 10 }],
+        x: 10, y: 7, startState: 'hidden',
+        waypoints: [{ x: 8, y: 7 }, { x: 8, y: 1.6 }],
         onDone: null
       }
     });
@@ -77,7 +77,7 @@
           {
             t: 'fn', f: function () {
               g.girl.state = 'script';
-              g.girl.scriptTarget = { x: 11, y: 9.6 };
+              g.girl.scriptTarget = { x: 9, y: 7.6 };
               M.Audio.sfx.chime();
             }
           },
@@ -126,8 +126,9 @@
           }
         }
 
-        // salida al este (solo si ella ya llegó)
-        if (g.control && g.player.gx > 22.6 && !this.exitReady) {
+        // salida por el portón del noreste (solo si ella ya llegó)
+        if (g.control && !this.exitReady &&
+            M.dist(g.player.gx, g.player.gy, 8, 1.3) < 1.25) {
           if (g.girl.wp >= g.girl.waypoints.length - 1) {
             this.exitReady = true;
             game.addNexus(10);

@@ -2,7 +2,9 @@
 /* ============================================================
    MÍSTICAS — (C) 1987 — scenes/conventext.js
    ESCENA 3 - EL CONVENTO (ADITUS OCCULTUS)
-   La fachada. La puerta no cede. La ventana, si. Ella ya entro.
+   HABITACIÓN FIJA: patio cerrado frente a la fachada maciza del
+   convento (muro doble de ladrillo con ventana y puerta). La
+   puerta no cede. La ventana, si. Ella ya entro.
    ============================================================ */
 (function (M) {
 
@@ -10,48 +12,44 @@
 
   M.Scenes.conventext = function (game) {
     var world = new M.WorldScene({
-      sky: { horizon: 64, moonX: 30 },
+      sky: { moonX: 30 },
       fog: 0.5,
       static: 0.02,
       windowLit: true,
       mapDef: {
+        // 17x11 — la fachada (muro alto) domina el fondo N; al O
+        // muro alto, al E y al S muro bajo. Escalera bajo la
+        // ventana, que es la entrada real.
         rows: [
-          'FFFFFFFFFFFFFFFFFFFFFFFF',
-          'F......................F',
-          'F......................F',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F...3...WWWWWWWWWWWWWWWF',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F.......WWWWWWWWWWWWWWWF',
-          'F...2......w.....d.....F',
-          'F..........p.....S.....F',
-          'FppppppppppppppppppppppF',
-          'F....................t.F',
-          'F.....1.............3..F',
-          'F......................F',
-          'F......................F',
-          'FFFFFFFFFFFFFFFFFFFFFFFF'
+          '#################',
+          '######w###d######',
+          '#.....S.........l',
+          '#.....p.........l',
+          '#....1p.........l',
+          '#.....p....t....l',
+          '#.....p......2..l',
+          '#.....p.........l',
+          '#.ppppp.........l',
+          '#......b........l',
+          'lllllllllllllllll'
         ],
         legend: {
           '.': { floor: 'grass' },
           'p': { floor: 'path' },
-          'F': { floor: 'grass', solid: true, deco: 'fence' },
-          'W': { floor: null, solid: true, block: 'wall', hh: 16 },
-          'w': { floor: 'grass', solid: true, deco: 'window' },
-          'd': { floor: 'grass', solid: true, deco: 'door' },
+          '#': { floor: null, solid: true, block: 'wall', hh: 22 },
+          'l': { floor: null, solid: true, block: 'wall', hh: 7 },
+          'w': { floor: null, solid: true, block: 'wall', hh: 22, deco: 'window' },
+          'd': { floor: null, solid: true, block: 'wall', hh: 22, deco: 'door' },
           'S': { floor: 'path', deco: 'stairs' },
           '1': { floor: 'grass', solid: true, deco: 'tomb1' },
-          '2': { floor: 'grass', solid: true, deco: 'tomb2' },
-          '3': { floor: 'grass', solid: true, deco: 'tomb3' }
+          '2': { floor: 'grass', solid: true, deco: 'tomb2' }
+          // 't' (árbol muerto) llega como MARCA de entidad, no leyenda
         }
       },
-      playerStart: { x: 1.5, y: 12 },
+      playerStart: { x: 2.5, y: 8.5 },
       girl: {
-        x: 2.5, y: 12, startState: 'hidden',
-        waypoints: [{ x: 8, y: 12 }, { x: 10.4, y: 12 }, { x: 11, y: 11.6 }]
+        x: 3, y: 8, startState: 'hidden',
+        waypoints: [{ x: 4, y: 8 }, { x: 6, y: 5 }, { x: 6, y: 2.4 }]
       }
     });
 
@@ -68,7 +66,7 @@
 
         // la puerta: cerrada
         g.interactables.push({
-          x: 17, y: 11.5, r: 1.5, once: false,
+          x: 10, y: 2.4, r: 1.5, once: false,
           hint: 'FUEGO: EXAMINAR LA PUERTA',
           fn: function () {
             M.Audio.sfx.creak();
@@ -79,14 +77,14 @@
         // la ventana: la entrada (FUEGO, o ARRIBA —la flecha o el
         // joystick a tope— para colarse de un tirón)
         g.interactables.push({
-          x: 11, y: 11.5, r: 1.5, once: true, key: 'up',
+          x: 6, y: 2.4, r: 1.5, once: true, key: 'up',
           hint: 'FUEGO O ARRIBA: COLARTE POR LA VENTANA',
           fn: function () {
             if (scene.windowDone) return;
             scene.windowDone = true;
             game.startCine([
               { t: 'fn', f: function () { g.control = false; } },
-              { t: 'move', ent: g.player, x: 11.2, y: 11.8, speed: 2.2 },
+              { t: 'move', ent: g.player, x: 6, y: 2.6, speed: 2.2 },
               { t: 'sfx', name: 'whoosh' },
               { t: 'nexus', n: 10 },
               { t: 'fn', f: function () { M.FX.glitchNow(1.1, 0.4); } },

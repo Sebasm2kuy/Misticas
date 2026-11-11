@@ -251,6 +251,24 @@ body.touch #touch { display: block; }
   color: #fff3ea;
 }
 
+/* Firma de la etiqueta de la cinta: ancla el borde inferior y
+   vuelve intencional el negro bajo los controles (canon del
+   audio-novel en casete). Solo decorativa. */
+#sig {
+  position: absolute;
+  left: 0; right: 0; bottom: 4px;
+  text-align: center;
+  font-family: monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: #5a15a0;
+  opacity: .85;
+  text-shadow: 0 0 6px rgba(90, 21, 160, .45);
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 /* Controles algo menores en pantallas pequeñas */
 @media (max-width: 420px) {
   .tbtn { width: 48px; height: 48px; }

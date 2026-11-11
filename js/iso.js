@@ -369,6 +369,158 @@
       else cam.x = M.clamp(cam.x, b.minX, b.maxX - vw);
       if (mh <= vh) cam.y = b.minY + (mh - vh) / 2;
       else cam.y = M.clamp(cam.y, b.minY, b.maxY - vh);
+    },
+
+    /* ============================================================
+       HABITACIONES FIJAS TIPO DIORAMA
+       Cada escena es UNA sala cerrada que flota en el vacío negro.
+       La sala entera (cimiento, suelo, zócalo-pedestal y muros) se
+       pre-renderiza UNA sola vez a un canvas offscreen: el bucle de
+       juego solo lo copia y dibuja encima las entidades vivas.
+       Cero recálculo de teselas por fotograma = cero lag.
+       ============================================================ */
+
+    // Marco completo de la sala en coords de pantalla-mundo:
+    // rombo de la huella + altura de muros arriba + zócalo abajo.
+    roomFrame: function (map) {
+      var maxHH = 8, x, y, t;
+      for (y = 0; y < map.h; y++) {
+        for (x = 0; x < map.w; x++) {
+          t = map.cells[y][x];
+          if (t && t.block === 'wall' && (t.hh || 13) > maxHH) maxHH = t.hh;
+        }
+      }
+      var N = { x: 0, y: 0 };
+      var E = { x: (map.w - 1) * HW + TW, y: (map.w - 1) * HH + HH };
+      var S = { x: (map.w - map.h) * HW + HW, y: (map.w + map.h - 2) * HH + TH };
+      var W = { x: -(map.h - 1) * HW, y: (map.h - 1) * HH + HH };
+      var pad = 2;
+      return {
+        N: N, E: E, S: S, W: W, D: 7, maxHH: maxHH,
+        x: W.x - pad,
+        y: N.y - maxHH - pad,
+        w: (E.x - W.x) + pad * 2,
+        h: (S.y + 7 + pad) - (N.y - maxHH - pad)
+      };
+    },
+
+    // cara del zócalo: pedestal macizo bajo el borde de la sala
+    _plinth: function (g, a, b) {
+      var D = 7;
+      // masa violeta oscura
+      g.fillStyle = M.PAL[M.C.DARK];
+      g.beginPath();
+      g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
+      g.lineTo(b.x, b.y + D); g.lineTo(a.x, a.y + D);
+      g.closePath(); g.fill();
+      // sombra inferior profunda (2 px negros)
+      g.fillStyle = M.PAL[M.C.BLACK];
+      g.beginPath();
+      g.moveTo(a.x, a.y + D - 2); g.lineTo(b.x, b.y + D - 2);
+      g.lineTo(b.x, b.y + D); g.lineTo(a.x, a.y + D);
+      g.closePath(); g.fill();
+      // contorno negro de la silueta
+      g.strokeStyle = M.PAL[M.C.BLACK];
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(a.x + 0.5, a.y); g.lineTo(b.x + 0.5, b.y);
+      g.lineTo(b.x + 0.5, b.y + D); g.lineTo(a.x + 0.5, a.y + D);
+      g.closePath(); g.stroke();
+      // arista superior iluminada (canon salmón)
+      g.strokeStyle = M.PAL[M.C.LMAG];
+      g.beginPath();
+      g.moveTo(a.x, a.y + 0.5); g.lineTo(b.x, b.y + 0.5);
+      g.stroke();
+    },
+
+    /* Pre-renderiza la sala estática completa. Devuelve
+       { canvas, frame } — el canvas ya lleva cimiento + suelo +
+       bordillos + zócalo + muros. Las capas de deco se hornean vía
+       callbacks para intercalarlas con los muros por profundidad:
+       opts.flat(g, toS)  → decos planos (cráneos, huesos) bajo muros
+       opts.walls(items)  → añade {d, fn} de puertas/portones a la
+                            lista de muros (orden pintor conjunto) */
+    renderRoom: function (map, opts) {
+      opts = opts || {};
+      var f = this.roomFrame(map);
+      var c = document.createElement('canvas');
+      c.width = Math.ceil(f.w);
+      c.height = Math.ceil(f.h);
+      var g = c.getContext('2d');
+      g.translate(-f.x, -f.y);
+      g.imageSmoothingEnabled = false;
+      var self = this;
+      function toS(gx, gy) {
+        var s = self.worldToScreen(gx, gy);
+        return { x: s.x + HW, y: s.y + HH };
+      }
+
+      // 1) cimiento: rombo macizo de la huella completa (los muros
+      //    se asientan sobre él: jamás quedan rendijas al vacío)
+      g.fillStyle = M.PAL[M.C.VDARK];
+      g.beginPath();
+      g.moveTo(f.N.x, f.N.y);
+      g.lineTo(f.E.x, f.E.y);
+      g.lineTo(f.S.x, f.S.y);
+      g.lineTo(f.W.x, f.W.y);
+      g.closePath(); g.fill();
+
+      // 2) zócalo frontal: el pedestal del diorama
+      this._plinth(g, f.E, f.S);
+      this._plinth(g, f.S, f.W);
+
+      // 3) suelo completo de la sala (UNA sola vez, nunca por frame)
+      var gx, gy, t, s;
+      for (gy = 0; gy < map.h; gy++) {
+        for (gx = 0; gx < map.w; gx++) {
+          t = map.cells[gy][gx];
+          if (t && t.floor) {
+            s = this.worldToScreen(gx, gy);
+            this.drawFloorTile(g, t.floor, s.x, s.y, gx, gy);
+          }
+        }
+      }
+
+      // 4) bordillos del área caminable (junto a muros y bordes)
+      for (gy = 0; gy < map.h; gy++) {
+        for (gx = 0; gx < map.w; gx++) {
+          t = map.cells[gy][gx];
+          if (t && t.floor) {
+            s = this.worldToScreen(gx, gy);
+            var mask = this.edgeMask(map, gx, gy);
+            if (mask) this.drawFloorEdge(g, s.x, s.y, mask);
+          }
+        }
+      }
+
+      // 5) decos planos (cráneos, huesos) sobre el suelo, bajo muros
+      if (opts.flat) opts.flat(g, toS);
+
+      // 6) muros en orden pintor; los decos de muro (puertas,
+      //    portones) van SIEMPRE en una segunda pasada encima:
+      //    están MONTADOS sobre las caras frontales de los muros y
+      //    ningún sillar vecino debe taparlos
+      var items = [];
+      for (gy = 0; gy < map.h; gy++) {
+        for (gx = 0; gx < map.w; gx++) {
+          t = map.cells[gy][gx];
+          if (t && t.block === 'wall') {
+            (function (gx2, gy2, hh) {
+              items.push({ d: gx2 + gy2, fn: function () {
+                var s2 = self.worldToScreen(gx2, gy2);
+                self.drawWall(g, s2.x, s2.y, hh);
+              }});
+            })(gx, gy, t.hh || 13);
+          }
+        }
+      }
+      items.sort(function (a, b) { return a.d - b.d; });
+      for (var i = 0; i < items.length; i++) items[i].fn();
+
+      // 6b) segunda pasada: puertas y portones sobre los muros
+      if (opts.walls) opts.walls(g, toS);
+
+      return { canvas: c, frame: f };
     }
   };
 

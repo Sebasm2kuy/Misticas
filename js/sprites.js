@@ -1325,12 +1325,72 @@
     return c;
   }
 
+  /* Portón de paso entre habitaciones (canon del diorama):
+     arco de medio punto ABIERTO — hueco negro de pasaje que se
+     pierde en la nada, dovelas violetas segmentadas, clave y jambas
+     salmón con contorno negro y umbral escalonado. Es LA puerta
+     visible que conecta las habitaciones fijas. */
+  function buildGate() {
+    var c = document.createElement('canvas');
+    c.width = 26; c.height = 34;
+    var x = c.getContext('2d');
+
+    // hueco del pasaje: negro absoluto con lejanía violeta
+    x.fillStyle = M.PAL[M.C.BLACK];
+    x.beginPath();
+    x.moveTo(6, 32); x.lineTo(6, 14);
+    x.arc(13, 14, 7, Math.PI, 0);
+    x.lineTo(20, 32); x.closePath(); x.fill();
+    x.fillStyle = M.PAL[M.C.VDARK];
+    x.fillRect(9, 24, 8, 8);
+    x.fillStyle = M.PAL[M.C.DPURP];
+    x.fillRect(11, 27, 4, 5);
+
+    // dovelas del arco: banda violeta saturado con juntas radiales
+    x.strokeStyle = M.PAL[M.C.PURP];
+    x.lineWidth = 4;
+    x.beginPath(); x.arc(13, 14, 9, Math.PI, Math.PI * 2); x.stroke();
+    x.strokeStyle = M.PAL[M.C.BLACK];
+    x.lineWidth = 1;
+    for (var a = 22; a < 180; a += 22) {
+      var rad = (90 - a) * Math.PI / 180;
+      x.beginPath();
+      x.moveTo(13 + Math.cos(rad) * 6, 14 - Math.sin(rad) * 6);
+      x.lineTo(13 + Math.cos(rad) * 12, 14 - Math.sin(rad) * 12);
+      x.stroke();
+    }
+    // arista superior iluminada
+    x.strokeStyle = M.PAL[M.C.LPURP];
+    x.lineWidth = 1;
+    x.beginPath(); x.arc(13, 14, 10.5, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+
+    // jambas salmón a los lados (canon: marco vivo)
+    x.fillStyle = M.PAL[M.C.BLACK];
+    x.fillRect(2, 12, 4, 22); x.fillRect(20, 12, 4, 22);
+    x.fillStyle = M.PAL[M.C.LMAG];
+    x.fillRect(3, 13, 2, 20); x.fillRect(21, 13, 2, 20);
+    x.fillStyle = M.PAL[M.C.BONE];
+    x.fillRect(3, 13, 2, 1); x.fillRect(21, 13, 2, 1);
+
+    // clave del arco: sillar salmón con brillo
+    x.fillStyle = M.PAL[M.C.BLACK]; x.fillRect(10, 1, 6, 6);
+    x.fillStyle = M.PAL[M.C.LMAG]; x.fillRect(11, 2, 4, 4);
+    x.fillStyle = M.PAL[M.C.WHITE]; x.fillRect(11, 2, 4, 1);
+
+    // umbral escalonado de piedra
+    x.fillStyle = M.PAL[M.C.BLACK]; x.fillRect(4, 31, 18, 3);
+    x.fillStyle = M.PAL[M.C.LMAG]; x.fillRect(5, 32, 16, 2);
+    x.fillStyle = M.PAL[M.C.BONE]; x.fillRect(5, 32, 16, 1);
+    return c;
+  }
+
   Spr.buildBigTree = buildBigTree;
   Spr.buildDeadTree = buildDeadTree;
   Spr.buildMoon = buildMoon;
   Spr.buildArch = buildArch;
   Spr.buildStairs = buildStairs;
   Spr.buildDoor = buildDoor;
+  Spr.buildGate = buildGate;
 
   // La cara: destello de 2 fotogramas en pantallas de título/pasillos
   Spr.drawFace = function (ctx, cx, cy) {
@@ -1359,6 +1419,7 @@
   Spr.archCanvas = null;
   Spr.stairsCanvas = null;
   Spr.doorCanvas = null;
+  Spr.gateCanvas = null;
 
   Spr.preload = function () {
     if (!this.bigTree) { this.bigTree = buildBigTree(); }
@@ -1369,6 +1430,7 @@
     if (!this.archCanvas) this.archCanvas = buildArch();
     if (!this.stairsCanvas) this.stairsCanvas = buildStairs();
     if (!this.doorCanvas) this.doorCanvas = buildDoor();
+    if (!this.gateCanvas) this.gateCanvas = buildGate();
   };
 
   M.Spr = Spr;

@@ -1,24 +1,49 @@
 'use strict';
 /* ============================================================
    MÍSTICAS — (C) 1987 — world.js
-   Base para escenas de mundo: mapa + cámara + entidades +
-   decorados con orden pintor + oscuridad interior con luces +
-   niebla, murciélagos y ratas de ambiente.
+   HABITACIONES FIJAS TIPO DIORAMA (modelo del podcast):
+   cada escena es UNA sala isométrica cerrada que flota en el
+   vacío negro. La sala estática (cimiento + suelo + zócalo
+   pedestal + muros de ladrillo + puertas) se pre-renderiza UNA
+   sola vez a un canvas offscreen; el bucle de juego solo copia
+   ese canvas y dibuja encima las entidades vivas. Cámara FIJA:
+   la sala completa siempre encuadrada, como un diorama. Cero
+   rejilla infinita, cero recálculo por fotograma, cero lag.
    ============================================================ */
 (function (M) {
 
   var E = M.Entities;
+
+  // Sprite de luz radial cacheado: se construye UNA vez para todo
+  // el juego. La oscuridad interior recorta luces con drawImage
+  // (nunca createRadialGradient por fotograma).
+  var LIGHT = null;
+  function lightSprite() {
+    if (LIGHT) return LIGHT;
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var x = c.getContext('2d');
+    var g = x.createRadialGradient(64, 64, 4, 64, 64, 62);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.55, 'rgba(0,0,0,0.72)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g;
+    x.fillRect(0, 0, 128, 128);
+    LIGHT = c;
+    return c;
+  }
 
   function WorldScene(cfg) {
     this.cfg = cfg;
     this.map = M.Iso.buildMap(cfg.mapDef);
     this.player = new E.Player(cfg.playerStart.x, cfg.playerStart.y);
     this.control = false;
-    this.cam = { x: 0, y: 0 };
-    this.camOverride = null; // {gx, gy} durante cinemáticas
+    this.cam = { x: 0, y: 0 };       // FIJA: la sala centrada
     this.triggers = [];
     this.interactables = [];
-    this.decor = [];
+    this.decor = [];                  // dinámicos (por fotograma)
+    this._bakeFlat = [];              // horneados: cráneos, huesos
+    this._bakeWall = [];              // horneados: puertas, portones
     this.candles = [];
     this.bats = [];
     this.rats = [];
@@ -52,14 +77,43 @@
     } else this.sister = null;
 
     this._buildDecor();
-    this._initCam();
+    this._bakeRoom();
   }
 
-  WorldScene.prototype._initCam = function () {
-    var p = M.Iso.worldToScreen(this.player.gx, this.player.gy);
-    this.cam.x = p.x + M.TILE_HW - M.SCREEN_W / 2;
-    this.cam.y = p.y + 6 - M.VIEW_H / 2;
-    M.Iso.clampCam(this.map, this.cam, M.SCREEN_W, M.VIEW_H);
+  /* ---------- horneado de la sala ----------
+     La sala completa vive en un canvas offscreen: cimiento, suelo,
+     zócalo, muros y decos estáticos (puertas, portones, cráneos y
+     huesos). La cámara queda FIJA con la sala centrada en el
+     lienzo — exactamente como el diorama del podcast. */
+  WorldScene.prototype._bakeRoom = function () {
+    var self = this;
+    var res = M.Iso.renderRoom(this.map, {
+      flat: function (g, toS) {
+        for (var i = 0; i < self._bakeFlat.length; i++) {
+          var b = self._bakeFlat[i];
+          var p = toS(b.gx, b.gy);
+          b.draw(g, p.x, p.y);
+        }
+      },
+      walls: function (g, toS) {
+        for (var i = 0; i < self._bakeWall.length; i++) {
+          var b = self._bakeWall[i];
+          var p = toS(b.gx, b.gy);
+          b.draw(g, p.x, p.y);
+        }
+      }
+    });
+    this._room = res.canvas;
+    this._frame = res.frame;
+
+    // cámara FIJA: la sala centrada en el lienzo lógico
+    this.cam.x = res.frame.x + res.frame.w / 2 + M.TILE_HW - M.SCREEN_W / 2;
+    this.cam.y = res.frame.y + res.frame.h / 2 + M.TILE_HH - M.VIEW_H / 2;
+    this._blitX = Math.round(M.SCREEN_W / 2 - res.frame.w / 2);
+    this._blitY = Math.round(M.VIEW_H / 2 - res.frame.h / 2);
+
+    // horizonte del cielo: apenas sobre los muros del diorama
+    this._skyHorizon = this._blitY + Math.min(46, res.frame.maxHH + 14);
   };
 
   WorldScene.prototype._buildDecor = function () {
@@ -114,7 +168,7 @@
       });
     }
 
-    // decorados definidos por leyenda (tumbas, valla, ventana, puerta, columna)
+    // decorados definidos por leyenda (tumbas, valla, ventana, puerta...)
     var seen = {};
     for (var gy = 0; gy < this.map.h; gy++) {
       for (var gx = 0; gx < this.map.w; gx++) {
@@ -124,6 +178,19 @@
         this._addDeco(tile.deco, gx, gy);
       }
     }
+
+    // decor dinámico pre-ordenado por profundidad (UNA vez: las
+    // posiciones nunca cambian; por fotograma solo se fusionan las
+    // entidades vivas en la lista)
+    this._items = this.decor.map(function (dec) {
+      return {
+        d: dec.gx + dec.gy,
+        fn: function (ctx, self2, t) {
+          var p = self2.toScreen(dec.gx, dec.gy);
+          dec.draw(ctx, p.x, p.y, t);
+        }
+      };
+    }).sort(function (a, b) { return a.d - b.d; });
   };
 
   WorldScene.prototype._addDeco = function (name, gx, gy) {
@@ -144,11 +211,23 @@
           Spr.draw(ctx, Spr.S.window, sx - 8, sy - 15, lit ? { remap: { '0': 'A' } } : null);
         }});
         break;
+      // puerta maciza montada en el muro: se HORNEA en la sala
       case 'door':
-        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
-          Spr.preload();
-          ctx.drawImage(Spr.doorCanvas, Math.round(sx - 10), Math.round(sy - 26));
-        }});
+        this._bakeWall.push({
+          gx: gx, gy: gy,
+          draw: function (g, sx, sy) {
+            g.drawImage(M.Spr.doorCanvas, Math.round(sx - 10), Math.round(sy - 26));
+          }
+        });
+        break;
+      // portón de paso entre habitaciones: HORNEADO con los muros
+      case 'gate':
+        this._bakeWall.push({
+          gx: gx, gy: gy,
+          draw: function (g, sx, sy) {
+            g.drawImage(M.Spr.gateCanvas, Math.round(sx - 13), Math.round(sy - 30));
+          }
+        });
         break;
       case 'column':
         this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
@@ -173,21 +252,19 @@
           Spr.draw(ctx, Spr.S.shelf, sx - 8, sy - 18);
         }});
         break;
+      // cráneo y huesos: planos sobre el suelo, HORNEADOS
       case 'skull':
-        // cráneo salmón en el suelo
-        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
-          Spr.draw(ctx, Spr.S.skull, sx - 4, sy - 5);
+        this._bakeFlat.push({ gx: gx, gy: gy, draw: function (g, sx, sy) {
+          Spr.draw(g, Spr.S.skull, sx - 4, sy - 5);
         }});
         break;
       case 'bones':
-        // huesos cruzados en el suelo
-        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
-          Spr.draw(ctx, Spr.S.bones, sx - 6, sy - 4);
+        this._bakeFlat.push({ gx: gx, gy: gy, draw: function (g, sx, sy) {
+          Spr.draw(g, Spr.S.bones, sx - 6, sy - 4);
         }});
         break;
       case 'sconce':
-        // aplique de vela sobre el muro (se dibuja tras su muro:
-        // el orden pintor estable lo garantiza)
+        // aplique de vela sobre el muro (llama viva: dinámico)
         this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy, t) {
           var fl = Math.floor(t * 6) % 2 === 0;
           Spr.draw(ctx, Spr.S.sconce, sx - 2, sy - 17);
@@ -197,7 +274,7 @@
     }
   };
 
-  /* ---------- conversión a pantalla ---------- */
+  /* ---------- conversión a pantalla (cámara fija) ---------- */
   WorldScene.prototype.toScreen = function (gx, gy) {
     var s = M.Iso.worldToScreen(gx, gy);
     var sh = M.FX.shakeOffset();
@@ -253,8 +330,6 @@
       if (M.dist(it.x, it.y, this.player.gx, this.player.gy) < (it.r || 1.1)) { near = it; break; }
     }
     if (near && this.control && !M.UI.dialogActive()) {
-      // pista de proximidad: se refresca mientras se está cerca
-      // (showHint no reinicia el reloj si el texto no cambia)
       if (near.hint) M.UI.showHint(near.hint, 0.8);
       if (M.Input.hit('fire') || (near.key && M.Input.hit(near.key))) {
         if (near.once) near.done = true;
@@ -270,7 +345,7 @@
         var dirR = Math.random() > 0.5;
         this.bats.push({
           x: dirR ? -10 : M.SCREEN_W + 10,
-          y: 20 + Math.random() * 45,
+          y: 14 + Math.random() * (this._skyHorizon - 14),
           vx: (dirR ? 1 : -1) * (26 + Math.random() * 22),
           f: 0
         });
@@ -291,26 +366,16 @@
       var rx = rat.a + (rat.b - rat.a) * (0.5 + 0.5 * Math.sin(rat.t));
       rat.px = rx;
     }
-
-    // cámara
-    var target = this.camOverride || this.player;
-    var tp = M.Iso.worldToScreen(target.gx, target.gy);
-    var tcx = tp.x + M.TILE_HW - M.SCREEN_W / 2;
-    var tcy = tp.y + 4 - M.VIEW_H / 2;
-    this.cam.x = M.lerp(this.cam.x, tcx, Math.min(1, dt * 3.2));
-    this.cam.y = M.lerp(this.cam.y, tcy, Math.min(1, dt * 3.2));
-    M.Iso.clampCam(this.map, this.cam, M.SCREEN_W, M.VIEW_H);
+    // cámara: FIJA — nada que recalcular
   };
 
   /* ---------- dibujo ---------- */
   WorldScene.prototype.draw = function (ctx, game) {
     var self = this;
-    var Iso = M.Iso;
 
-    // cielo
+    // cielo nocturno detrás del diorama (solo exteriores)
     if (this.cfg.sky) {
-      M.FX.drawSky(ctx, this.cfg.sky.horizon, this.t, { moonX: this.cfg.sky.moonX });
-      // murciélagos
+      M.FX.drawSky(ctx, this._skyHorizon, this.t, { moonX: this.cfg.sky.moonX });
       var SprB = M.Spr.S;
       for (var b = 0; b < this.bats.length; b++) {
         var bat = this.bats[b];
@@ -318,43 +383,13 @@
       }
     }
 
-    // suelo
-    Iso.forEachVisible(this.map, this.cam, M.SCREEN_W, M.VIEW_H, function (sx, sy, gx, gy, tile) {
-      if (tile && tile.floor) Iso.drawFloorTile(ctx, tile.floor, sx, sy, gx, gy);
-    });
+    // LA SALA: una única copia del canvas horneado (+ sacudida)
+    var sh = M.FX.shakeOffset();
+    ctx.drawImage(this._room, Math.round(this._blitX + sh.x), Math.round(this._blitY + sh.y));
 
-    // borde perimetral del area caminable (canon: banda morada solida
-    // junto a los muros y en el limite del mapa, como el suelo de la
-    // camara de arcos de la captura real)
-    Iso.forEachVisible(this.map, this.cam, M.SCREEN_W, M.VIEW_H, function (sx, sy, gx, gy, tile) {
-      if (tile && tile.floor) {
-        var mask = Iso.edgeMask(self.map, gx, gy);
-        if (mask) Iso.drawFloorEdge(ctx, sx, sy, mask);
-      }
-    });
-
-    // cono de visión de la hermana (sobre la oscuridad, bajo el HUD)
-    var self2 = this;
-
-    // dibujables ordenados por profundidad
-    var items = [];
-
-    Iso.forEachVisible(this.map, this.cam, M.SCREEN_W, M.VIEW_H, function (sx, sy, gx, gy, tile) {
-      if (tile && tile.block === 'wall') {
-        (function (sx2, sy2, tile2) {
-          items.push({ d: gx + gy, fn: function () { Iso.drawWall(ctx, sx2, sy2, (tile2 && tile2.hh) || 13); } });
-        })(sx, sy, tile);
-      }
-    });
-
-    for (var i = 0; i < this.decor.length; i++) {
-      var dc = this.decor[i];
-      (function (dec) {
-        var p = self.toScreen(dec.gx, dec.gy);
-        if (p.x < -60 || p.x > M.SCREEN_W + 60 || p.y < -90 || p.y > M.VIEW_H + 50) return;
-        items.push({ d: dec.gx + dec.gy, fn: function () { dec.draw(ctx, p.x, p.y, self.t); } });
-      })(dc);
-    }
+    // entidades vivas + decor dinámico, orden pintor (el decor ya
+    // viene pre-ordenado del horneado: solo se fusiona y dibuja)
+    var items = this._items.slice();
 
     for (var c = 0; c < this.candles.length; c++) {
       (function (cd) {
@@ -432,38 +467,36 @@
     }
 
     items.sort(function (a, b) { return a.d - b.d; });
-    for (var q = 0; q < items.length; q++) items[q].fn();
+    for (var q = 0; q < items.length; q++) items[q].fn(ctx, this, this.t);
 
-    // oscuridad interior con luces recortadas
+    // oscuridad interior con luces recortadas (sprite cacheado)
     if (this.cfg.darkness > 0) this._drawDarkness(ctx);
 
     // cono de visión: SIEMPRE visible sobre la oscuridad
     if (this.sister) {
-      this.sister.drawCone(ctx, function (gx, gy) { return self2.toScreen(gx, gy); });
-      // la llama de su vela brilla sobre la oscuridad
-      var fp = self2.toScreen(self2.sister.gx, self2.sister.gy);
-      var prof = Math.abs(self2.sister.facing.x) > Math.abs(self2.sister.facing.y);
+      this.sister.drawCone(ctx, function (gx, gy) { return self.toScreen(gx, gy); });
+      var fp = self.toScreen(self.sister.gx, self.sister.gy);
+      var prof = Math.abs(self.sister.facing.x) > Math.abs(self.sister.facing.y);
       var fx = prof ? fp.x - 5 : fp.x + 4;
       var fy = fp.y - (prof ? 15 : 13);
       ctx.fillStyle = M.PAL[M.C.LORAN];
       ctx.fillRect(fx, fy, 2, 2);
       ctx.fillStyle = M.PAL[M.C.ORANG];
       ctx.fillRect(fx, fy + 2, 1, 3);
-      if (Math.sin(self2.t * 13) > 0.3) {
+      if (Math.sin(self.t * 13) > 0.3) {
         ctx.fillStyle = M.PAL[M.C.WHITE];
         ctx.fillRect(fx, fy, 1, 1);
       }
     }
 
     // niebla
-    if (this.cfg.fog > 0) M.FX.drawFog(ctx, this.t, this.cfg.fog, this.cam.x);
+    if (this.cfg.fog > 0) M.FX.drawFog(ctx, this.t, this.cfg.fog, 0);
 
     // estática sutil
     if (this.cfg.static > 0) M.FX.drawStatic(ctx, this.cfg.static);
   };
 
   WorldScene.prototype._drawDarkness = function (ctx) {
-    // el lienzo de oscuridad sigue el tamaño real de la pantalla
     if (!this._darkCanvas ||
         this._darkCanvas.width !== M.SCREEN_W ||
         this._darkCanvas.height !== M.VIEW_H) {
@@ -498,16 +531,12 @@
       }
     }
 
+    // recorte con el sprite radial cacheado (rápido: drawImage)
+    var sp = lightSprite();
     dc.globalCompositeOperation = 'destination-out';
     for (var j = 0; j < lights.length; j++) {
-      var g = dc.createRadialGradient(lights[j].x, lights[j].y, 1, lights[j].x, lights[j].y, lights[j].r);
-      g.addColorStop(0, 'rgba(0,0,0,0.95)');
-      g.addColorStop(0.6, 'rgba(0,0,0,0.55)');
-      g.addColorStop(1, 'rgba(0,0,0,0)');
-      dc.fillStyle = g;
-      dc.beginPath();
-      dc.arc(lights[j].x, lights[j].y, lights[j].r, 0, Math.PI * 2);
-      dc.fill();
+      var r = Math.max(4, lights[j].r);
+      dc.drawImage(sp, lights[j].x - r, lights[j].y - r, r * 2, r * 2);
     }
     dc.globalCompositeOperation = 'source-over';
     ctx.drawImage(this._darkCanvas, 0, 0);

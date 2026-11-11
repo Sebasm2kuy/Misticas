@@ -251,13 +251,14 @@
       var cw = Math.round(BW * s);
       var ch = Math.round(BH * s);
 
-      // posición vertical: el bloque TUBO+HUD se pega arriba (sin
-      // espacios muertos extraños) y el sobrante baja, donde viven
-      // los controles; en escritorio sigue centrado
+      // posición vertical: en táctil, el tubo flota equilibrado en
+      // el espacio entre los botones de sistema (arriba) y la zona
+      // de controles (abajo, anclada al borde real): cero bloques
+      // muertos raros; en escritorio sigue centrado
       var top;
       if (touch) {
         var freeV = Math.max(0, vh - needT - needB - ch);
-        top = Math.round(needT + freeV * 0.12);
+        top = Math.round(needT + freeV * 0.42);
       } else {
         top = Math.round((vh - ch) / 2);
       }
@@ -318,36 +319,33 @@
       var below = vh - tubeBottom;      // negro disponible bajo el tubo
 
       // joystick flotante: banda lateral negra si cabe (104 px);
-      // si no, bajo el tubo. Con espacio de sobra se PEGA al tubo
-      // (bloque cerrado pantalla+controles, como una consola portátil);
-      // si el sobrante es justo, al borde inferior (altura del pulgar)
+      // si no, a la ALTURA DEL PULGAR: pegado al borde inferior en
+      // pantallas justas, y ligeramente elevado (dejando sitio a la
+      // firma de la cinta) cuando sobra negro. Nunca pisa el tubo.
       var joy = document.getElementById('joy');
       var jb = joy ? joy.getBoundingClientRect() : { width: 104, height: 104 };
       var jw = jb.width, jh = jb.height;
-      var hug = below >= 150;
+      // margen inferior deseado: 76 px (controles + firma debajo)
+      var jLift = Math.max(14, Math.min(76, vh - tubeBottom - jh - 24));
       if (joy) {
         if (sideL >= jw + 14) {
           pos('joy', { left: Math.round((sideL - jw) / 2), bottom: Math.max(16, sa.bottom + 8) });
         } else {
-          var jbot = hug
-            ? Math.max(6, vh - tubeBottom - jh - 8)
-            : Math.max(10, sa.bottom + 4);
-          pos('joy', { left: Math.max(12, sa.left + 6), bottom: jbot });
+          pos('joy', { left: Math.max(12, sa.left + 6), bottom: jLift });
         }
       }
 
-      // FUEGO: simétrico al joystick
+      // FUEGO: simétrico al joystick y alineado a su arco (centros
+      // a la misma altura cuando el negro deja margen)
       var fire = document.getElementById('t-fire');
       var fb = fire ? fire.getBoundingClientRect() : { width: 64, height: 64 };
       var fw = fb.width, fh = fb.height;
+      var fLift = Math.max(16, Math.min(jLift + (jh - fh) / 2, vh - tubeBottom - fh - 24));
       if (fire) {
         if (sideR >= fw + 16) {
           pos('t-fire', { right: Math.round((sideR - fw) / 2), bottom: Math.max(18, sa.bottom + 10) });
         } else {
-          var fbot = hug
-            ? Math.max(6, vh - tubeBottom - fh - 12)
-            : Math.max(14, sa.bottom + 6);
-          pos('t-fire', { right: Math.max(14, sa.right + 6), bottom: fbot });
+          pos('t-fire', { right: Math.max(14, sa.right + 6), bottom: fLift });
         }
       }
     },
