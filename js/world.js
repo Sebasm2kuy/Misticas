@@ -97,7 +97,7 @@
     if (this.marks['L']) {
       this.marks['L'].forEach(function (mk) {
         self.decor.push({ gx: mk.x, gy: mk.y, draw: function (ctx, sx, sy) {
-          Spr.draw(ctx, Spr.S.tomb2, sx - 5, sy - 9);
+          Spr.draw(ctx, Spr.S.tomb2, sx - 6, sy - 10);
         }});
         M.Iso.tileAt(self.map, mk.x, mk.y).solid = true;
       });
@@ -146,7 +146,8 @@
         break;
       case 'door':
         this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
-          Spr.draw(ctx, Spr.S.door, sx - 9, sy - 21);
+          Spr.preload();
+          ctx.drawImage(Spr.doorCanvas, Math.round(sx - 10), Math.round(sy - 26));
         }});
         break;
       case 'column':
@@ -164,6 +165,33 @@
         this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
           Spr.preload();
           ctx.drawImage(Spr.stairsCanvas, Math.round(sx - 18), Math.round(sy - 24));
+        }});
+        break;
+      case 'shelf':
+        // estantería negra con cajones salmón (canon de la cripta)
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.draw(ctx, Spr.S.shelf, sx - 8, sy - 18);
+        }});
+        break;
+      case 'skull':
+        // cráneo salmón en el suelo
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.draw(ctx, Spr.S.skull, sx - 4, sy - 5);
+        }});
+        break;
+      case 'bones':
+        // huesos cruzados en el suelo
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.draw(ctx, Spr.S.bones, sx - 6, sy - 4);
+        }});
+        break;
+      case 'sconce':
+        // aplique de vela sobre el muro (se dibuja tras su muro:
+        // el orden pintor estable lo garantiza)
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy, t) {
+          var fl = Math.floor(t * 6) % 2 === 0;
+          Spr.draw(ctx, Spr.S.sconce, sx - 2, sy - 17);
+          if (fl) { ctx.fillStyle = M.PAL[M.C.LORAN]; ctx.fillRect(Math.round(sx + 1), Math.round(sy - 12), 1, 1); }
         }});
         break;
     }

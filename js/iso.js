@@ -91,9 +91,11 @@
     },
 
     /* ---------- dibujo de teselas ----------
-       Canon de las capturas reales (interior del convento): suelo
-       NEGRO con puntitos morados dispersos, SIN rejilla por losa.
-       El perímetro caminable se cierra con una banda morada sólida
+       Canon de las capturas reales del podcast: suelo de losas
+       NEGROAS con juntas violetas (sutiles, no una rejilla
+       chillona), puntitos morados dispersos, alguna losa violeta
+       oscuro y aristas salmón encendidas de vez en cuando. El
+       perímetro caminable se cierra con banda morada sólida
        (drawFloorEdge, la llama world.js). Sin degradados. */
 
     _diamond: function (ctx, sx, sy, color) {
@@ -156,9 +158,10 @@
           if (hv < 0.12) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
           break;
         case 'stone':
-          // interior del convento (canon): losa negra con puntitos
-          // morados dispersos — NINGUNA rejilla por losa
-          this._diamond(ctx, sx, sy, M.C.BLACK);
+          // interior del convento (canon): losas negras con junta
+          // violeta sutil, alguna losa violácea y motas dispersas
+          this._diamond(ctx, sx, sy, (hv > 0.78 && hv < 0.86) ? M.C.VDARK : M.C.BLACK);
+          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
           if (hv > 0.30) this._speck(ctx, sx, sy, gx, gy, M.C.DPURP);
           if (hv > 0.72) this._speck(ctx, sx, sy, gx + 3, gy + 5, M.C.PURP);
           if (hv < 0.08) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 8, sy + 4, 1, 1); }
@@ -184,16 +187,16 @@
     },
 
     /* Bloque isométrico (muro) de altura hh px.
-       Canon de la captura real "repisa con puerta y escalera":
-       sillares de contorno morado con caras rellenas de NEGRO,
-       juntas (mortero) moradas en hiladas corridas y algún
-       sillar encendido en rosa salmón. Tapa morada plana con
-       arista violeta y silueta negra gruesa. */
+       Canon de las capturas reales del podcast: sillares GRANDES
+       en aparejo corrido con contorno violeta y interior negro,
+       algunos rellenos violeta sólido y otros encendidos en rosa
+       salmón (juntas negras de mortero). Tapa violeta con arista
+       salmón iluminada y silueta negra gruesa. */
     drawWall: function (ctx, sx, sy, hh) {
       var self = this;
 
       function face(poly, ox, oy) {
-        // cara: negro + juntas moradas (clip al paralelogramo)
+        // cara: negro de fondo (clip al paralelogramo)
         ctx.save();
         ctx.beginPath();
         for (var i = 0; i < poly.length; i++) {
@@ -204,26 +207,40 @@
         ctx.fillStyle = M.PAL[M.C.BLACK];
         ctx.fill();
         ctx.clip();
-        // hiladas horizontales de mortero morado
-        ctx.strokeStyle = M.PAL[M.C.PURP];
-        ctx.lineWidth = 1;
-        var y, x;
+
+        // sillares en aparejo corrido: contorno violeta, interior
+        // negro; algunos sólidos y otros encendidos (deterministas)
         var top = sy + oy, bot = sy + oy - hh;
-        for (y = top - 4; y > bot; y -= 5) {
-          ctx.beginPath(); ctx.moveTo(sx - 2, y + 0.5); ctx.lineTo(sx + TW + 2, y + 0.5); ctx.stroke();
-        }
-        // juntas verticales: aparejo corrido (desfasadas por hilada)
-        var row = 0;
-        for (y = top - 4; y > bot; y -= 5, row++) {
-          for (x = ox + ((row % 2) ? 4 : 9); x < ox + TW; x += 10) {
-            ctx.beginPath(); ctx.moveTo(sx + x + 0.5, y - 4); ctx.lineTo(sx + x + 0.5, y + 1); ctx.stroke();
+        var BH = 5;                  // alto de la hilada
+        var BW = 10;                 // ancho del sillar
+        var row = 0, y0, x0, x1, jx;
+        for (y0 = top - 1; y0 > bot; y0 -= BH, row++) {
+          var off = (row % 2) ? 0 : BW / 2;
+          for (jx = ox - BW + off; jx < ox + TW + BW; jx += BW) {
+            x0 = Math.max(sx + jx + 0.5, sx - 2);
+            x1 = Math.min(sx + jx + BW - 0.5, sx + TW + 2);
+            if (x1 <= x0) continue;
+            var y1 = Math.max(y0 - BH + 1, bot - 2);
+            // relleno del sillar: la mayoría negro; algunos vivos
+            var hsh = M.hash(Math.floor(sx + jx), Math.floor(y0) + row * 31);
+            if (hsh < 0.16) {
+              ctx.fillStyle = M.PAL[M.C.DPURP];
+              ctx.fillRect(x0 - sx + sx, y1, x1 - x0, y0 - y1);
+            } else if (hsh < 0.24) {
+              ctx.fillStyle = M.PAL[M.C.PURP];
+              ctx.fillRect(x0 - sx + sx, y1, x1 - x0, y0 - y1);
+            } else if (hsh > 0.9) {
+              // sillar encendido: interior negro con brillo salmón
+              ctx.fillStyle = M.PAL[M.C.LMAG];
+              ctx.fillRect(x0, y1 + 1, Math.min(4, x1 - x0), 1);
+              ctx.fillRect(x0, y1, 1, Math.min(3, y0 - y1));
+            }
+            // contorno violeta del sillar
+            ctx.strokeStyle = M.PAL[M.C.PURP];
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x0, y1, x1 - x0, y0 - y1);
           }
         }
-        // sillares encendidos (rosa salmón, deterministas)
-        var seed = (Math.floor(sx) * 7 + Math.floor(sy) * 13 + Math.floor(hh)) % 97;
-        if (seed % 3 === 0) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + ox + 3, top - 9, 5, 3); }
-        if (seed % 4 === 1) { ctx.fillStyle = M.PAL[M.C.LMAG]; ctx.fillRect(sx + ox + 13, top - 15, 5, 3); }
-        if (seed % 5 === 2) { ctx.fillStyle = M.PAL[M.C.DPURP]; ctx.fillRect(sx + ox + 7, top - 21, 5, 3); }
         ctx.restore();
       }
 
@@ -232,7 +249,7 @@
       // cara derecha (SE)
       face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH);
 
-      // tapa morada plana
+      // tapa violeta plana
       ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.beginPath();
       ctx.moveTo(sx + HW, sy - hh);
@@ -251,14 +268,15 @@
       ctx.lineTo(sx + TW, sy + HH);
       ctx.lineTo(sx + HW, sy + TH);
       ctx.closePath(); ctx.stroke();
-      // arista iluminada violeta sobre la tapa
-      ctx.strokeStyle = M.PAL[M.C.LPURP];
+      // arista SUPERIOR iluminada en salmón (canon: borde magenta)
+      ctx.strokeStyle = M.PAL[M.C.LMAG];
       ctx.beginPath();
-      ctx.moveTo(sx + HW, sy - hh);
-      ctx.lineTo(sx, sy + HH - hh);
-      ctx.lineTo(sx + HW, sy + TH - hh);
-      ctx.lineTo(sx + TW, sy + HH - hh);
-      ctx.closePath(); ctx.stroke();
+      ctx.moveTo(sx + HW + 1, sy - hh + 1);
+      ctx.lineTo(sx + 1, sy + HH - hh + 1);
+      ctx.lineTo(sx + HW, sy + TH - hh + 1);
+      ctx.lineTo(sx + TW - 1, sy + HH - hh + 1);
+      ctx.lineTo(sx + HW + 1, sy - hh + 1);
+      ctx.stroke();
     },
 
     /* Aristas del diamante de una tesela (borde del área caminable).
