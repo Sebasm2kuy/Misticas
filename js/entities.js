@@ -33,9 +33,11 @@
       M.Iso.move(map, this, ax.x * this.speed * dt, ax.y * this.speed * dt);
       this.moving = true;
       this.pose = 'walk';
-      // orientación según eje dominante en pantalla
-      if (Math.abs(ax.x) >= Math.abs(ax.y)) this.dir = ax.x > 0 ? 'E' : 'W';
-      else this.dir = ax.y > 0 ? 'S' : 'N';
+      // orientación según la intención en PANTALLA (arriba = de
+      // espaldas N, izquierda = perfil W): el movimiento isométrico
+      // se siente exactamente como se ve
+      if (Math.abs(ax.sx) >= Math.abs(ax.sy)) this.dir = ax.sx > 0 ? 'E' : 'W';
+      else this.dir = ax.sy > 0 ? 'S' : 'N';
       this.animT += dt * 7;
       this.stepT -= dt;
       if (this.stepT <= 0) { M.Audio.sfx.step(); this.stepT = 0.26; }

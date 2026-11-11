@@ -167,7 +167,8 @@
         });
       }
       // en móvil, cualquier toque sobre la página avanza las pantallas
-      // sin HUD (arranque, portada, finales) — nadie se queda bloqueado
+      // sin HUD (arranque, portada, finales) — nadie se queda bloqueado.
+      // El joystick y los botones gestionan sus propias teclas.
       document.body.addEventListener('pointerdown', function (ev) {
         M.Audio.init();
         M.Audio.resume();
@@ -176,8 +177,9 @@
           M.Input.pressed.pause = true;
           return;
         }
-        // los botones táctiles gestionan sus propias teclas
+        // los botones táctiles y el joystick gestionan sus propias teclas
         if (ev.target && ev.target.classList && ev.target.classList.contains('tbtn')) return;
+        if (ev.target && ev.target.closest && ev.target.closest('#joy')) return;
         if (!self.scene || self.scene.hud === false) {
           M.Input.anyPressed = true;
           M.Input.pressed.fire = true;
@@ -215,9 +217,10 @@
        factor entero en escritorio (nitidez 1:1), barras negras donde
        haga falta. NUNCA se estira ni se recorta: el HUD completo y
        todos los textos quedan SIEMPRE dentro del marco visible.
-       En pantallas táctiles se reservan una banda superior (PAUSA y
-       AUDIO) y una inferior (cruceta y FUEGO) para que los controles
-       caigan FUERA del tubo, sin pisar el HUD ni la vista. */
+       En táctil, el tubo se pega a la banda superior (cero espacios
+       muertos por encima) y el joystick flotante + FUEGO caen en el
+       negro lateral o bajo el tubo, según dé sitio: NUNCA sobre el
+       HUD ni la vista. */
     _resize: function () {
       var BW = 320, BH = 240;   // lienzo lógico fijo (4:3 exacto)
       var vw = Math.max(200, window.innerWidth);
@@ -226,20 +229,21 @@
         (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
 
       // factor que quepa entero (fit-contain, sin estirar)
-      var s = Math.min(vw / BW, vh / BH);
+      var s0 = Math.min(vw / BW, vh / BH);
 
       var needT = 0, needB = 0;
       if (touch) {
-        // ¿las barras del letterbox dan margen de sobra?
-        var sideBand = (vw - BW * s) / 2;
-        var bottomBand = (vh - BH * s) / 2;
-        needT = M.TOUCH_TOP;                                    // 48
-        needB = (sideBand >= 150 && bottomBand >= 40)
-          ? M.TOUCH_BOTTOM_WIDE    // 64: controles a los lados y abajo
-          : M.TOUCH_BOTTOM_TALL;   // 110: controles apilados abajo
-        s = Math.min(vw / BW, (vh - needT - needB) / BH);
+        needT = M.TOUCH_TOP;   // 48: PAUSA + AUDIO
+        // si las bandas laterales del letterbox dan para el joystick
+        // (124 px), los controles viven en el negro lateral y el tubo
+        // ocupa toda la altura restante; si no, se reserva una zona
+        // inferior compacta para el stick y FUEGO
+        var sideBand = (vw - BW * s0) / 2;
+        needB = (sideBand < 124) ? M.TOUCH_BOTTOM_TALL : 0;
+        s0 = Math.min(vw / BW, (vh - needT - needB) / BH);
       }
 
+      var s = s0;
       // nitidez 1:1 en pantallas grandes (factor entero)
       if (s >= 2) s = Math.floor(s);
       if (s < 0.4) s = 0.4;
@@ -247,12 +251,13 @@
       var cw = Math.round(BW * s);
       var ch = Math.round(BH * s);
 
-      // posición vertical: en táctil, el tubo queda a la altura de la
-      // vista y el sobrante se va abajo (donde van los controles)
+      // posición vertical: el bloque TUBO+HUD se pega arriba (sin
+      // espacios muertos extraños) y el sobrante baja, donde viven
+      // los controles; en escritorio sigue centrado
       var top;
       if (touch) {
         var freeV = Math.max(0, vh - needT - needB - ch);
-        top = Math.round(needT + freeV * 0.3);
+        top = Math.round(needT + freeV * 0.12);
       } else {
         top = Math.round((vh - ch) / 2);
       }
@@ -275,21 +280,22 @@
       M.SCREEN_H = BH;
       M.VIEW_H = BH - M.HUD_H;
 
+      // rect del tubo para colocar los controles sin pisarlo
+      this._tube = { left: left, top: top, w: cw, h: ch };
+
       this._layoutTouch(touch);
       this._syncAudioBtn();
     },
 
-    /* Coloca los botones táctiles SIEMPRE fuera del tubo: arriba en
-       la banda superior (PAUSA y AUDIO) y abajo en la inferior (cruceta
-       a la izquierda, FUEGO a la derecha). Como _resize reserva esas
-       bandas, jamás pisan el HUD ni la vista del mundo. */
+    /* Coloca el joystick flotante y FUEGO SIEMPRE fuera del tubo:
+       prefiere las bandas negras laterales del letterbox; si son
+       estrechas, la zona inferior reservada. PAUSA y AUDIO siguen
+       arriba. Como _resize mide el tubo real, jamás pisan el HUD. */
     _layoutTouch: function (touch) {
       if (!touch) return;   // sin táctil no hay nada que recolocar
       var vw = window.innerWidth;
+      var vh = window.innerHeight;
       var sa = this._safeAreas();
-      var small = vw < 420;
-      var size = small ? 48 : 44;
-      var gap = 3;
 
       function pos(id, o) {
         var el = document.getElementById(id);
@@ -304,16 +310,46 @@
       pos('t-pause', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) });
       pos('t-audio', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) + 54 });
 
-      // cruceta: banda inferior izquierda (arriba = hueco central)
-      var bx = Math.max(6, sa.left);
-      var by = Math.max(8, sa.bottom);
-      pos('t-left',  { left: bx,                     bottom: by });
-      pos('t-right', { left: bx + 2 * (size + gap),  bottom: by });
-      pos('t-up',    { left: bx + size + gap,        bottom: by + size + gap });
-      pos('t-down',  { left: bx + size + gap,        bottom: by });
+      // geometría del tubo tras el escalado
+      var tube = this._tube || { left: 0, top: 0, w: vw, h: vh * 0.7 };
+      var sideL = tube.left;
+      var sideR = vw - (tube.left + tube.w);
+      var tubeBottom = tube.top + tube.h;
+      var below = vh - tubeBottom;      // negro disponible bajo el tubo
 
-      // FUEGO: banda inferior derecha
-      pos('t-fire', { right: Math.max(14, sa.right), bottom: Math.max(6, sa.bottom) });
+      // joystick flotante: banda lateral negra si cabe (104 px);
+      // si no, bajo el tubo. Con espacio de sobra se PEGA al tubo
+      // (bloque cerrado pantalla+controles, como una consola portátil);
+      // si el sobrante es justo, al borde inferior (altura del pulgar)
+      var joy = document.getElementById('joy');
+      var jb = joy ? joy.getBoundingClientRect() : { width: 104, height: 104 };
+      var jw = jb.width, jh = jb.height;
+      var hug = below >= 150;
+      if (joy) {
+        if (sideL >= jw + 14) {
+          pos('joy', { left: Math.round((sideL - jw) / 2), bottom: Math.max(16, sa.bottom + 8) });
+        } else {
+          var jbot = hug
+            ? Math.max(6, vh - tubeBottom - jh - 8)
+            : Math.max(10, sa.bottom + 4);
+          pos('joy', { left: Math.max(12, sa.left + 6), bottom: jbot });
+        }
+      }
+
+      // FUEGO: simétrico al joystick
+      var fire = document.getElementById('t-fire');
+      var fb = fire ? fire.getBoundingClientRect() : { width: 64, height: 64 };
+      var fw = fb.width, fh = fb.height;
+      if (fire) {
+        if (sideR >= fw + 16) {
+          pos('t-fire', { right: Math.round((sideR - fw) / 2), bottom: Math.max(18, sa.bottom + 10) });
+        } else {
+          var fbot = hug
+            ? Math.max(6, vh - tubeBottom - fh - 12)
+            : Math.max(14, sa.bottom + 6);
+          pos('t-fire', { right: Math.max(14, sa.right + 6), bottom: fbot });
+        }
+      }
     },
 
     // márgenes seguros (móviles con muesca) en px

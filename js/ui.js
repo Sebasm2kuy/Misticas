@@ -24,6 +24,7 @@
       opts = opts || {};
       var wrapN = Math.max(14, Math.floor((M.SCREEN_W - 24) / 6));
       var lines = this._wrap(text, wrapN);
+      this.hint = null;   // el diálogo manda: nada comparte su caja
       this.dialog = {
         who: who || null,
         lines: lines,
@@ -143,24 +144,50 @@
       F.drawCenteredFit(ctx, '· ' + c.scene + ' ·', W / 2, 118, M.C.BONE2, { scale: 1 });
     },
 
-    /* ---------- pista de controles ---------- */
+    /* ---------- pista de controles ----------
+       CERO textos flotando en el mundo: toda pista o susurro se
+       muestra dentro de la MISMA caja inferior del diálogo, una
+       línea limpia cada vez. Si un diálogo está activo, la pista
+       espera su turno (el reloj se congela). El mismo texto que
+       se refresca (pistas de proximity) NO reinicia su reloj. */
     showHint: function (text, dur) {
+      if (this.hint && this.hint.text === text) {
+        this.hint.dur = this.hint.t + (dur || 4.5);
+        return;
+      }
       this.hint = { text: text, t: 0, dur: dur || 4.5 };
     },
 
     updateHint: function (dt) {
       if (!this.hint) return;
+      if (this.dialog) return;      // el diálogo manda: la pista espera
       this.hint.t += dt;
       if (this.hint.t > this.hint.dur) this.hint = null;
     },
 
     drawHint: function (ctx, t) {
       var h = this.hint;
-      if (!h) return;
+      if (!h || this.dialog) return;   // nada comparte pantalla con la caja
       var W = M.SCREEN_W;
-      var a = h.t < 0.3 ? h.t / 0.3 : (h.t > h.dur - 0.6 ? (h.dur - h.t) / 0.6 : 1);
-      ctx.globalAlpha = a * (0.75 + Math.sin(t * 4) * 0.15);
-      F.drawCenteredFit(ctx, h.text, W / 2, M.VIEW_H - 50, M.C.BONE2);
+      var wrapN = Math.max(14, Math.floor((W - 24) / 6));
+      var lines = this._wrap(h.text, wrapN);
+      if (lines.length > 2) lines = lines.slice(0, 2);
+      var bh = 12 + lines.length * 10 + 4;
+      var bx = 4, by = M.VIEW_H - bh - 4, bw = W - 8;
+      // mismo marco que la caja de diálogo: bloque único, cerrado
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = M.PAL[M.C.VDARK];
+      ctx.fillRect(bx, by, bw, bh);
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = M.PAL[M.C.DPURP];
+      ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
+      ctx.fillStyle = M.PAL[M.C.BLACK];
+      ctx.fillRect(bx + 2, by + 2, bw - 4, 1);
+      var a = h.t < 0.25 ? h.t / 0.25 : (h.t > h.dur - 0.5 ? Math.max(0, (h.dur - h.t) / 0.5) : 1);
+      ctx.globalAlpha = a;
+      for (var i = 0; i < lines.length; i++) {
+        F.draw(ctx, lines[i], bx + 8, by + 8 + i * 10, M.C.BONE2);
+      }
       ctx.globalAlpha = 1;
     },
 

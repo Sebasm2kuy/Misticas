@@ -100,7 +100,10 @@
           {
             t: 'fn', f: function () {
               g.control = true;
-              M.UI.showHint('FLECHAS O WASD: MUEVETE — NO LA PIERDAS DE VISTA', 6.5);
+              var touchMode = document.body.classList.contains('touch');
+              M.UI.showHint(touchMode
+                ? 'ARRASTRA LA BOLA PARA MOVERTE. NO LA PIERDAS DE VISTA'
+                : 'FLECHAS O WASD: MUEVETE — NO LA PIERDAS DE VISTA', 6.5);
             }
           }
         ]);
@@ -131,7 +134,7 @@
             M.FX.fadeTo(1, 2.2, null);
             M.Audio.sfx.glitch();
             game.setScene('cemetery');
-          } else if (!M.UI.hint) {
+          } else if (!M.UI.hint && !M.UI.dialog) {
             M.UI.showHint('ESPERA A ELLA. NO CONOCES EL CAMINO.', 3);
           }
         }

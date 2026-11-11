@@ -28,19 +28,22 @@
     <div id="flick"></div>
   </div>
 
-  <!-- Controles táctiles: viven en las bandas negras del letterbox
-       (PAUSA y AUDIO arriba; cruceta y FUEGO abajo), nunca sobre el
-       tubo ni sobre el HUD. main.js los recoloca al redimensionar. -->
+  <!-- Controles táctiles: viven en el negro del letterbox, nunca
+       sobre el tubo ni sobre el HUD. Arriba PAUSA y AUDIO; abajo,
+       a la izquierda el JOYSTICK FLOTANTE analógico (sustituye a la
+       cruceta) y a la derecha FUEGO. main.js los recoloca tras cada
+       redimensionado midiendo el tubo real. -->
   <div id="touch">
     <!-- Botones de sistema: pausa y audio, siempre accesibles -->
     <div class="tbtn tsys" data-k="pause" id="t-pause" role="button" aria-label="Pausa">II</div>
     <div class="tbtn tsys" data-k="mute"  id="t-audio" role="button" aria-label="Silenciar audio">&#9834;</div>
-    <!-- Cruceta de movimiento y acción -->
-    <div class="tbtn" data-k="up"    id="t-up"    aria-label="Arriba">&#9650;</div>
-    <div class="tbtn" data-k="left"  id="t-left"  aria-label="Izquierda">&#9664;</div>
-    <div class="tbtn" data-k="right" id="t-right" aria-label="Derecha">&#9654;</div>
-    <div class="tbtn" data-k="down"  id="t-down"  aria-label="Abajo">&#9660;</div>
-    <div class="tbtn" data-k="fire"  id="t-fire"  aria-label="Acción">&#9679;</div>
+    <!-- Joystick táctil flotante: bola translúcida que se arrastra.
+         input.js convierte el vector del dedo a la rejilla isométrica. -->
+    <div id="joy" role="button" aria-label="Joystick de movimiento">
+      <div id="joy-knob"></div>
+    </div>
+    <!-- Botón de acción -->
+    <div class="tbtn" data-k="fire" id="t-fire" role="button" aria-label="Acción">&#9679;</div>
   </div>
 
   <!-- Orden de carga: núcleo primero, escenas al final -->

@@ -76,9 +76,10 @@
           }
         });
 
-        // la ventana: la entrada
+        // la ventana: la entrada (FUEGO, o ARRIBA —la flecha o el
+        // joystick a tope— para colarse de un tirón)
         g.interactables.push({
-          x: 11, y: 11.5, r: 1.5, once: true,
+          x: 11, y: 11.5, r: 1.5, once: true, key: 'up',
           hint: 'FUEGO O ARRIBA: COLARTE POR LA VENTANA',
           fn: function () {
             if (scene.windowDone) return;

@@ -110,11 +110,12 @@ canvas#game {
 }
 
 /* ---- Controles táctiles ----
-   Viven en las BANDAS NEGRAS del letterbox, FUERA del tubo:
-   PAUSA y AUDIO arriba; cruceta abajo-izquierda y FUEGO abajo-
-   derecha. main.js recalcula las posiciones en px tras cada
-   redimensionado (reservando sitio para que jamás pisen el
-   HUD); estas reglas son el respaldo si el JS no corre.
+   Viven en el NEGRO del letterbox, FUERA del tubo: arriba PAUSA y
+   AUDIO; abajo-izquierda el JOYSTICK FLOTANTE analógico (bola
+   translúcida que se arrastra; sustituye a la cruceta) y abajo-
+   derecha FUEGO. main.js recalcula las posiciones en px tras cada
+   redimensionado midiendo el tubo real, para que jamás pisen el
+   HUD; estas reglas son el respaldo si el JS no corre.
    Se muestran: en dispositivos táctiles (pointer: coarse),
    tras el primer toque, o cuando el juego está en pausa. */
 #touch {
@@ -177,8 +178,8 @@ body.touch #touch { display: block; }
   transform: rotate(-24deg);
 }
 
-/* Posiciones de respaldo (main.js las recalcula con las
-   bandas reservadas y los márgenes seguros de muesca) */
+/* Posiciones de respaldo (main.js las recalcula midiendo el tubo
+   real y los márgenes seguros de muesca) */
 #t-pause {
   top: 6px; right: 10px;
 }
@@ -186,31 +187,79 @@ body.touch #touch { display: block; }
   top: 6px; right: 64px;
 }
 
-/* Cruceta: banda inferior izquierda (arriba = hueco central) */
-#t-left {
-  left: 6px; bottom: 8px;
+/* ---- Joystick táctil flotante ----
+   Bola translúcida de 104 px con pomo de 44: el dedo la arrastra y
+   input.js convierte el vector a la rejilla isométrica. Al soltar,
+   el pomo vuelve al centro con una microtransición. */
+#joy {
+  position: absolute;
+  left: 16px; bottom: 20px;
+  width: 104px; height: 104px;
+  border-radius: 50%;
+  border: 1px solid rgba(122, 31, 208, .5);
+  background:
+    radial-gradient(circle at 50% 42%,
+      rgba(46, 18, 72, .10),
+      rgba(23, 11, 38, .34) 62%,
+      rgba(10, 4, 18, .5) 100%);
+  box-shadow:
+    0 0 16px rgba(0, 0, 0, .55),
+    inset 0 0 22px rgba(0, 0, 0, .6),
+    inset 0 2px 8px rgba(255, 168, 160, .07);
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
 }
-#t-right {
-  left: 100px; bottom: 8px;
+#joy-knob {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 44px; height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 168, 160, .65);
+  background:
+    radial-gradient(circle at 50% 38%,
+      rgba(122, 31, 208, .60),
+      rgba(46, 18, 72, .55) 72%,
+      rgba(10, 4, 18, .7) 100%);
+  box-shadow:
+    0 3px 12px rgba(0, 0, 0, .7),
+    inset 0 1px 8px rgba(255, 168, 160, .28);
+  transition: transform .12s ease-out;
 }
-#t-up {
-  left: 53px; bottom: 55px;
-}
-#t-down {
-  left: 53px; bottom: 8px;
-}
+#joy.live #joy-knob { transition: none; }
 
-/* Botón de acción: banda inferior derecha */
+/* Botón de acción: esfera translúcida a la derecha */
 #t-fire {
-  right: 14px; bottom: 6px;
-  width: 58px; height: 58px;
-  font-size: 20px;
+  right: 18px; bottom: 22px;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border-color: rgba(232, 40, 30, .8);
+  background:
+    radial-gradient(circle at 50% 40%,
+      rgba(90, 21, 160, .35),
+      rgba(23, 11, 38, .5) 70%,
+      rgba(10, 4, 18, .66) 100%);
+  font-size: 24px;
+  box-shadow: 0 0 14px rgba(0, 0, 0, .6);
+}
+#t-fire:active, #t-fire.held {
+  background:
+    radial-gradient(circle at 50% 40%,
+      rgba(232, 40, 30, .55),
+      rgba(90, 21, 160, .45) 75%);
+  color: #fff3ea;
 }
 
-/* Botones algo mayores en pantallas pequeñas */
+/* Controles algo menores en pantallas pequeñas */
 @media (max-width: 420px) {
   .tbtn { width: 48px; height: 48px; }
-  #t-right { left: 108px; }
-  #t-up { left: 57px; bottom: 59px; }
-  #t-down { left: 57px; }
+}
+@media (max-height: 460px) {
+  #joy { width: 80px; height: 80px; }
+  #joy-knob {
+    width: 34px; height: 34px;
+    margin: -17px 0 0 -17px;
+  }
+  #t-fire { width: 52px; height: 52px; font-size: 19px; }
 }

@@ -56,7 +56,7 @@
         document.body.classList.add('touch');
       }, { passive: true });
 
-      // Botones táctiles
+      // Botones táctiles (PAUSA, AUDIO, FUEGO)
       var btns = document.querySelectorAll('.tbtn');
       for (var i = 0; i < btns.length; i++) {
         (function (btn) {
@@ -79,6 +79,8 @@
           btn.addEventListener('pointerleave', off);
         })(btns[i]);
       }
+
+      this.initJoystick();
     },
 
     down: function (k) { return !!this.keys[k]; },
@@ -98,16 +100,116 @@
       return false;
     },
 
-    // Eje de movimiento (-1..1 en "espacio de pantalla")
+    /* Eje de movimiento: vector en REJILLA isométrica (x, y) listo
+       para Iso.move, con magnitud analógica 0..1, más la intención
+       en ESPACIO DE PANTALLA (sx, sy) para orientar el sprite. El
+       joystick táctil tiene prioridad; si no, el teclado. */
     axis: function () {
-      var x = 0, y = 0;
-      if (this.down('up')) { x -= 1; y -= 1; }
-      if (this.down('down')) { x += 1; y += 1; }
-      if (this.down('left')) { x -= 1; y += 1; }
-      if (this.down('right')) { x += 1; y -= 1; }
+      var j = this._joy;
+      if (j && j.active) {
+        return { x: j.x, y: j.y, sx: j.sx, sy: j.sy, active: true };
+      }
+      var x = 0, y = 0, sx = 0, sy = 0;
+      if (this.down('up'))    { x -= 1; y -= 1; sx += 0; sy -= 1; }
+      if (this.down('down'))  { x += 1; y += 1; sx += 0; sy += 1; }
+      if (this.down('left'))  { x -= 1; y += 1; sx -= 1; sy += 0; }
+      if (this.down('right')) { x += 1; y -= 1; sx += 1; sy += 0; }
       var len = Math.sqrt(x * x + y * y);
+      var slen = Math.sqrt(sx * sx + sy * sy);
       if (len > 0) { x /= len; y /= len; }
-      return { x: x, y: y, active: len > 0 };
+      if (slen > 0) { sx /= slen; sy /= slen; }
+      return { x: x, y: y, sx: sx, sy: sy, active: len > 0 };
+    },
+
+    /* ---------- JOYSTICK TÁCTIL FLOTANTE ----------
+       Sustituye a la cruceta: bola translúcida que se arrastra.
+       El vector del dedo en PANTALLA se convierte a la REJILLA
+       isométrica (HW=8, HH=4): arrastrar hacia arriba mueve al
+       niño hacia arriba en pantalla, con velocidad analógica
+       proporcional a la inclinación. Si el stick llega al tope
+       se emite UNA pulsación direccional (como una flecha), lo
+       que mantiene interacciones como la ventana del convento. */
+    _joy: null,
+    _joyKeyed: false,
+
+    initJoystick: function () {
+      var self = this;
+      var base = document.getElementById('joy');
+      var knob = document.getElementById('joy-knob');
+      if (!base || !knob) return;
+      this._joy = { active: false, x: 0, y: 0, sx: 0, sy: 0 };
+
+      var pid = null;
+
+      function setKnob(dx, dy) {
+        knob.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      }
+
+      function reset() {
+        pid = null;
+        self._joyKeyed = false;
+        base.classList.remove('live');
+        setKnob(0, 0);
+        self._joy.active = false;
+        self._joy.x = self._joy.y = self._joy.sx = self._joy.sy = 0;
+      }
+
+      function update(ev) {
+        var rect = base.getBoundingClientRect();
+        if (rect.width < 10) return;
+        var half = rect.width / 2;
+        var kr = Math.max(12, 22 * (rect.width / 104));   // radio del pomo
+        var R = half - kr - 2;                            // recorrido útil
+        var DEAD = Math.max(6, R * 0.3);
+        var lx = ev.clientX - (rect.left + half);
+        var ly = ev.clientY - (rect.top + half);
+        var len = Math.sqrt(lx * lx + ly * ly);
+        if (len > R) { lx = lx / len * R; ly = ly / len * R; len = R; }
+        setKnob(Math.round(lx), Math.round(ly));
+        if (len < DEAD) { self._joy.active = false; return; }
+        var mag = Math.min(1, (len - DEAD) / Math.max(1, R - DEAD));
+        // pantalla → rejilla isométrica (HW=8, HH=4):
+        // gx = y/8 + x/16, gy = y/8 - x/16
+        var gx = ly / 8 + lx / 16;
+        var gy = ly / 8 - lx / 16;
+        var glen = Math.sqrt(gx * gx + gy * gy) || 1;
+        self._joy.active = true;
+        self._joy.x = gx / glen * mag;
+        self._joy.y = gy / glen * mag;
+        self._joy.sx = lx / (len || 1);
+        self._joy.sy = ly / (len || 1);
+        // giro completo del stick = UNA pulsación direccional
+        if (mag > 0.9 && !self._joyKeyed) {
+          self._joyKeyed = true;
+          var k = (Math.abs(lx) >= Math.abs(ly))
+            ? (lx > 0 ? 'right' : 'left')
+            : (ly > 0 ? 'down' : 'up');
+          self.pressed[k] = true;
+          self.anyPressed = true;
+        }
+      }
+
+      base.addEventListener('pointerdown', function (ev) {
+        ev.preventDefault();
+        if (pid !== null) return;
+        pid = ev.pointerId;
+        self._joyKeyed = false;
+        base.classList.add('live');
+        if (base.setPointerCapture) {
+          try { base.setPointerCapture(pid); } catch (e) {}
+        }
+        update(ev);
+      });
+      base.addEventListener('pointermove', function (ev) {
+        if (pid === null || ev.pointerId !== pid) return;
+        update(ev);
+      });
+      function end(ev) {
+        if (pid === null || ev.pointerId !== pid) return;
+        reset();
+      }
+      base.addEventListener('pointerup', end);
+      base.addEventListener('pointercancel', end);
     },
 
     // Llamar al final del fotograma

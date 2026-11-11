@@ -91,12 +91,33 @@
     },
 
     /* ---------- dibujo de teselas ----------
-       Canon de las capturas reales del podcast: suelo de losas
-       NEGROAS con juntas violetas (sutiles, no una rejilla
-       chillona), puntitos morados dispersos, alguna losa violeta
-       oscuro y aristas salmón encendidas de vez en cuando. El
-       perímetro caminable se cierra con banda morada sólida
-       (drawFloorEdge, la llama world.js). Sin degradados. */
+       ESTÁNDAR FAMICOM/NES: masa sólida de piedra + junta negra
+       de mortero + luz escasa. Nada de rejillas geométricas: el
+       suelo se lee como ADOQUÍN compacto porque cada losa es un
+       trozo de masa violeta oscura separado por sombra (negro),
+       no una línea brillante sobre vacío. La luz (salmón) solo
+       salta en contadas losas. Exterior = pradera/ tierra con
+       matas y hoyos; interior = losas pavimentadas con junta;
+       camino = tierra más clara, pisada. Sin degradados. */
+
+    // junta de mortero: aristas SE + SW del diamante en negro
+    // (la sombra de la losa sobre la siguiente: adoquín macizo)
+    _joint: function (ctx, sx, sy) {
+      ctx.strokeStyle = M.PAL[M.C.BLACK];
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sx + TW - 0.5, sy + HH);
+      ctx.lineTo(sx + HW, sy + TH - 0.5);
+      ctx.lineTo(sx + 0.5, sy + HH);
+      ctx.stroke();
+    },
+
+    // dab: detalle de 1-2 px (mata, hoyo, guijarro) determinista
+    _dab: function (ctx, sx, sy, gx, gy, color, w, h) {
+      ctx.fillStyle = M.PAL[color];
+      ctx.fillRect(sx + 4 + Math.floor(M.hash(gx, gy) * 8),
+                   sy + 2 + Math.floor(M.hash(gy, gx) * 4), w || 1, h || 1);
+    },
 
     _diamond: function (ctx, sx, sy, color) {
       ctx.fillStyle = M.PAL[color];
@@ -138,39 +159,49 @@
       var hv = M.hash(gx, gy);
       switch (type) {
         case 'grass':
-          this._diamond(ctx, sx, sy, M.C.VDARK);
-          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
-          if (hv > 0.62) this._speck(ctx, sx, sy, gx, gy, M.C.DARK);
-          if (hv < 0.14) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 10 - ((gy * 5) % 6), sy + 5, 1, 1); }
-          if (hv > 0.93) this._litEdge(ctx, sx, sy);
+          // pradera nocturna: masa violeta compacta, aclarada a
+          // trechos por la luna; matas, hoyos y alguna chispa
+          this._diamond(ctx, sx, sy, (hv < 0.22) ? M.C.DARK : M.C.VDARK);
+          if (hv > 0.40 && hv < 0.58) this._dab(ctx, sx, sy, gx, gy, M.C.DARK, 1, 2);
+          if (hv > 0.58 && hv < 0.72) this._dab(ctx, sx, sy, gx + 3, gy + 5, M.C.DARK, 2, 1);
+          if (hv < 0.10) this._dab(ctx, sx, sy, gy, gx, M.C.BLACK, 2, 1);
+          if (hv > 0.93 && hv < 0.97) this._dab(ctx, sx, sy, gx + 1, gy + 2, M.C.DPURP, 1, 1);
+          if (hv > 0.97) this._litEdge(ctx, sx, sy);
           break;
         case 'path':
-          this._diamond(ctx, sx, sy, M.C.BLACK);
-          this._diamondOutline(ctx, sx, sy, M.C.PURP);
-          if (hv > 0.55) this._speck(ctx, sx, sy, gx, gy, M.C.DPURP);
-          if (hv < 0.2) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 9, sy + 2, 1, 1); }
-          if (hv > 0.86) this._litEdge(ctx, sx, sy);
+          // sendero pisado: tierra más clara que la hierba, junta
+          // de adoquín hundido y guijarros de hueso
+          this._diamond(ctx, sx, sy, M.C.DARK);
+          this._joint(ctx, sx, sy);
+          if (hv < 0.25) this._dab(ctx, sx, sy, gx, gy, M.C.VDARK, 2, 2);
+          if (hv > 0.55 && hv < 0.78) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
+          if (hv > 0.86) this._dab(ctx, sx, sy, gx + 5, gy + 1, M.C.BONE2, 1, 1);
+          if (hv > 0.95) this._litEdge(ctx, sx, sy);
           break;
         case 'dirt':
-          this._diamond(ctx, sx, sy, M.C.BLACK);
-          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
-          if (hv > 0.5) { ctx.fillStyle = M.PAL[M.C.DARK]; ctx.fillRect(sx + 3 + ((gx * 5) % 9), sy + 4, 2, 1); }
-          if (hv < 0.12) this._speck(ctx, sx, sy, gx, gy, M.C.PURP);
+          // campo santo: tierra violácea con tumulillos y huesos
+          this._diamond(ctx, sx, sy, (hv < 0.16) ? M.C.DARK : M.C.VDARK);
+          if (hv > 0.45 && hv < 0.62) {
+            this._dab(ctx, sx, sy, gx, gy, M.C.DARK, 2, 1);
+            this._dab(ctx, sx, sy, gy, gx, M.C.BLACK, 1, 1);
+          }
+          if (hv < 0.09) this._dab(ctx, sx, sy, gx, gy, M.C.BLACK, 2, 1);
+          if (hv > 0.80 && hv < 0.90) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
+          if (hv > 0.96) this._litEdge(ctx, sx, sy);
           break;
         case 'stone':
-          // interior del convento (canon): losas negras con junta
-          // violeta sutil, alguna losa violácea y motas dispersas
-          this._diamond(ctx, sx, sy, (hv > 0.78 && hv < 0.86) ? M.C.VDARK : M.C.BLACK);
-          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
-          if (hv > 0.30) this._speck(ctx, sx, sy, gx, gy, M.C.DPURP);
-          if (hv > 0.72) this._speck(ctx, sx, sy, gx + 3, gy + 5, M.C.PURP);
-          if (hv < 0.08) { ctx.fillStyle = M.PAL[M.C.BONE2]; ctx.fillRect(sx + 8, sy + 4, 1, 1); }
-          if (hv > 0.93) this._litEdge(ctx, sx, sy);
+          // claustro del convento: losas de piedra maciza con junta
+          // negra de mortero, alguna losa más clara, grietas y astillas
+          this._diamond(ctx, sx, sy, (hv < 0.16) ? M.C.DARK : M.C.VDARK);
+          this._joint(ctx, sx, sy);
+          if (hv > 0.50 && hv < 0.66) this._dab(ctx, sx, sy, gx, gy, M.C.BLACK, 1, 1);
+          if (hv > 0.86 && hv < 0.93) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
+          if (hv > 0.95) this._litEdge(ctx, sx, sy);
           break;
         case 'carpet':
-          // alfombra morada del canon
+          // alfombra del abad: masa púrpura con cenefa discreta
           this._diamond(ctx, sx, sy, M.C.DPURP);
-          this._diamondOutline(ctx, sx, sy, M.C.LPURP);
+          this._joint(ctx, sx, sy);
           if ((gx * 3 + gy * 5) % 7 === 0) {
             ctx.fillStyle = M.PAL[M.C.LMAG];
             ctx.fillRect(sx + 7, sy + 3, 2, 1);
@@ -181,22 +212,23 @@
           }
           break;
         default:
-          this._diamond(ctx, sx, sy, M.C.BLACK);
-          this._diamondOutline(ctx, sx, sy, M.C.DPURP);
+          this._diamond(ctx, sx, sy, M.C.VDARK);
+          this._joint(ctx, sx, sy);
       }
     },
 
     /* Bloque isométrico (muro) de altura hh px.
-       Canon de las capturas reales del podcast: sillares GRANDES
-       en aparejo corrido con contorno violeta y interior negro,
-       algunos rellenos violeta sólido y otros encendidos en rosa
-       salmón (juntas negras de mortero). Tapa violeta con arista
-       salmón iluminada y silueta negra gruesa. */
+       ESTÁNDAR FAMICOM/NES: cara SO en violeta profundo y cara SE
+       media luz más clara (el volumen nace del contraste), sillares
+       en aparejo corrido dibujados como MASA de piedra con JUNTA
+       NEGRA de mortero. Algunos sillares aclaran (deterministas) y
+       muy pocos se encienden con arista salmón. Tapa morada sólida
+       con arista iluminada y silueta negra gruesa. Cero líneas
+       finas flotantes: todo es masa, sombra y luz. */
     drawWall: function (ctx, sx, sy, hh) {
-      var self = this;
 
-      function face(poly, ox, oy) {
-        // cara: negro de fondo (clip al paralelogramo)
+      function face(poly, ox, oy, mass) {
+        // cara: masa sólida de piedra (clip al paralelogramo)
         ctx.save();
         ctx.beginPath();
         for (var i = 0; i < poly.length; i++) {
@@ -204,12 +236,12 @@
           else ctx.lineTo(poly[i][0] + sx, poly[i][1] + sy);
         }
         ctx.closePath();
-        ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fill();
         ctx.clip();
+        ctx.fillStyle = M.PAL[mass];
+        ctx.fillRect(sx - 2, sy - hh - 6, TW + 4, hh + TH + 8);
 
-        // sillares en aparejo corrido: contorno violeta, interior
-        // negro; algunos sólidos y otros encendidos (deterministas)
+        // sillares en aparejo corrido: junta negra sobre la masa,
+        // cuerpos aclarados y aristas encendidas (deterministas)
         var top = sy + oy, bot = sy + oy - hh;
         var BH = 5;                  // alto de la hilada
         var BW = 10;                 // ancho del sillar
@@ -217,37 +249,35 @@
         for (y0 = top - 1; y0 > bot; y0 -= BH, row++) {
           var off = (row % 2) ? 0 : BW / 2;
           for (jx = ox - BW + off; jx < ox + TW + BW; jx += BW) {
-            x0 = Math.max(sx + jx + 0.5, sx - 2);
-            x1 = Math.min(sx + jx + BW - 0.5, sx + TW + 2);
+            x0 = Math.max(sx + jx + 1, sx - 2);
+            x1 = Math.min(sx + jx + BW - 1, sx + TW + 2);
             if (x1 <= x0) continue;
             var y1 = Math.max(y0 - BH + 1, bot - 2);
-            // relleno del sillar: la mayoría negro; algunos vivos
             var hsh = M.hash(Math.floor(sx + jx), Math.floor(y0) + row * 31);
-            if (hsh < 0.16) {
-              ctx.fillStyle = M.PAL[M.C.DPURP];
-              ctx.fillRect(x0 - sx + sx, y1, x1 - x0, y0 - y1);
-            } else if (hsh < 0.24) {
+            if (hsh < 0.13) {
+              // sillar aclarado: la piedra recibe algo más de luna
+              ctx.fillStyle = M.PAL[(mass === M.C.DARK) ? M.C.PURP : M.C.DARK];
+              ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
+            } else if (hsh > 0.93) {
+              // sillar encendido: cuerpo vivo y arista salmón
               ctx.fillStyle = M.PAL[M.C.PURP];
-              ctx.fillRect(x0 - sx + sx, y1, x1 - x0, y0 - y1);
-            } else if (hsh > 0.9) {
-              // sillar encendido: interior negro con brillo salmón
+              ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
               ctx.fillStyle = M.PAL[M.C.LMAG];
-              ctx.fillRect(x0, y1 + 1, Math.min(4, x1 - x0), 1);
-              ctx.fillRect(x0, y1, 1, Math.min(3, y0 - y1));
+              ctx.fillRect(x0, y1, Math.min(4, x1 - x0), 1);
             }
-            // contorno violeta del sillar
-            ctx.strokeStyle = M.PAL[M.C.PURP];
+            // junta negra de mortero alrededor del sillar
+            ctx.strokeStyle = M.PAL[M.C.BLACK];
             ctx.lineWidth = 1;
-            ctx.strokeRect(x0, y1, x1 - x0, y0 - y1);
+            ctx.strokeRect(x0 - 0.5, y1 - 0.5, x1 - x0 + 1, y0 - y1 + 1);
           }
         }
         ctx.restore();
       }
 
-      // cara izquierda (SO)
-      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH);
-      // cara derecha (SE)
-      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH);
+      // cara izquierda (SO): violeta profundo — cara derecha (SE):
+      // media luz; el contraste entre ambas da el volumen Famicom
+      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH, M.C.VDARK);
+      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH, M.C.DARK);
 
       // tapa violeta plana
       ctx.fillStyle = M.PAL[M.C.PURP];
@@ -280,11 +310,12 @@
     },
 
     /* Aristas del diamante de una tesela (borde del área caminable).
-       mask: bit 1 = NW, 2 = NE, 4 = SE, 8 = SW. Canon: banda morada
-       sólida junto a los muros y en el límite del mapa. */
+       mask: bit 1 = NW, 2 = NE, 4 = SE, 8 = SW. Canon: bordillo en
+       magenta OSCURO solo donde la losa delimita con muro o límite
+       del mapa (nunca una banda brillante que compita con la piedra). */
     drawFloorEdge: function (ctx, sx, sy, mask) {
       if (!mask) return;
-      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.strokeStyle = M.PAL[M.C.DPURP];
       ctx.lineWidth = 1;
       ctx.beginPath();
       if (mask & 1) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + 0.5, sy + HH); }

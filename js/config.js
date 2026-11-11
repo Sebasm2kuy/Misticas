@@ -22,8 +22,8 @@ window.MISTICAS = window.MISTICAS || {};
   // Reserva de banda superior/inferior para los controles táctiles
   // cuando las barras del letterbox no dan espacio de sobra.
   M.TOUCH_TOP = 48;
-  M.TOUCH_BOTTOM_WIDE = 64;   // controles a los lados (banda lateral holgada)
-  M.TOUCH_BOTTOM_TALL = 110;  // controles apilados abajo (móvil en vertical)
+  M.TOUCH_BOTTOM_TALL = 92;  // zona inferior compacta: joystick + FUEGO
+  M.TOUCH_BOTTOM_WIDE = 56;   // (legacy: banda lateral holgada)
 
   // ¿La resolución interna es estrecha? (legacy: ahora es fija y ancha)
   M.isNarrow = function () { return M.SCREEN_W < 240; };

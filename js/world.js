@@ -253,7 +253,9 @@
       if (M.dist(it.x, it.y, this.player.gx, this.player.gy) < (it.r || 1.1)) { near = it; break; }
     }
     if (near && this.control && !M.UI.dialogActive()) {
-      if (!M.UI.hint && near.hint) M.UI.showHint(near.hint, 0.6);
+      // pista de proximidad: se refresca mientras se está cerca
+      // (showHint no reinicia el reloj si el texto no cambia)
+      if (near.hint) M.UI.showHint(near.hint, 0.8);
       if (M.Input.hit('fire') || (near.key && M.Input.hit(near.key))) {
         if (near.once) near.done = true;
         near.fn();
