@@ -207,13 +207,12 @@
       // banda negra pura del canon ("bottom strip, black background")
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, y0, W, M.HUD_H);
-      ctx.fillStyle = M.PAL[M.C.VDARK];
-      ctx.fillRect(0, y0, W, 1);
 
       var Spr = M.Spr, i;
 
-      // -- corazones de vida (5, con medios), en la fila de los slots --
-      var hx = 8, hy = y0 + 13;
+      // -- corazones de vida (5, con medios): pegados a la costura
+      //    con la caja de texto para leer UN solo bloque inferior --
+      var hx = 8, hy = y0 + 9;
       for (i = 0; i < 5; i++) {
         var full = game.hearts >= i + 1;
         var half = !full && game.hearts >= i + 0.5;
