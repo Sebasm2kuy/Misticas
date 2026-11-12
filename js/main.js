@@ -1,119 +1,80 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — main.js
-   El corazón: bucle, gestor de escenas, cinemáticas, daño,
-   NEXUS, pausa y las pantallas finales (CONTINUARA / FIN).
+   MÍSTICAS — (C) 1987 — js/main.js
+   El corazón del cartucho: bucle a 60 FPS, gestor de escenas,
+   cinemáticas, daño, NEXUS, PAUSA y los efectos de "cinta
+   maldita".
+
+   NADA de alpha en todo el motor:
+   - Los fundidos son SUSTITUCIÓN DE PALETA por pasos (la PPU
+     apagando colores), aplicada a la tabla activa M.PAL y a los
+     bancos horneados de teselas y sprites.
+   - El "glitch" son bandas del propio fotograma desplazadas en
+     horizontal + píxeles de estática sueltos.
    ============================================================ */
 (function (M) {
 
   var F = M.Font;
 
-  M.Scenes = M.Scenes || {};
+  /* ============ EFECTOS DE CINTA MALDITA ============ */
+  var FX = {
+    fade: 1, fadeTarget: 0, fadeSpeed: 1.2,
+    glitchT: 0, glitchI: 1,
+    lightningT: 0,
 
-  /* ============ CONTINUARA... + estadisticas ============ */
-  M.Scenes.ending = function (game) {
-    return {
-      hud: false,
-      t: 0,
+    fadeTo: function (v, speed) {
+      this.fadeTarget = v;
+      this.fadeSpeed = speed || 1.2;
+    },
 
-      enter: function () {
-        M.FX.fade = 1;
-        M.FX.fadeTo(0, 0.9);
-        M.Audio.wind(false);
-      },
+    glitchNow: function (intensity, dur) {
+      this.glitchI = intensity || 1;
+      this.glitchT = dur || 0.2;
+    },
 
-      update: function (dt) {
-        this.t += dt;
-        if (this.t > 1.2 && (M.Input.hitAny() || M.Input.hit('fire'))) {
-          game.setScene('title');
+    lightning: function () {
+      this.lightningT = 0.18;
+      M.Audio.sfx.thunder();
+    },
+
+    isLightning: function () { return this.lightningT > 0; },
+
+    bank: function () {
+      return Math.max(0, Math.min(M.FADESWAP.length - 1,
+        Math.round(this.fade * (M.FADESWAP.length - 1))));
+    },
+
+    update: function (dt) {
+      // fundido por pasos hacia el objetivo
+      if (this.fade < this.fadeTarget) {
+        this.fade = Math.min(this.fadeTarget, this.fade + this.fadeSpeed * dt);
+      } else if (this.fade > this.fadeTarget) {
+        this.fade = Math.max(this.fadeTarget, this.fade - this.fadeSpeed * dt);
+      }
+      if (this.glitchT > 0) this.glitchT -= dt;
+      if (this.lightningT > 0) this.lightningT -= dt;
+    },
+
+    /* post-proceso sobre el fotograma terminado */
+    drawOver: function (ctx, canvas) {
+      var W = M.SCREEN_W, H = M.SCREEN_H;
+      if (this.glitchT > 0) {
+        var strips = Math.round(4 + this.glitchI * 6);
+        for (var i = 0; i < strips; i++) {
+          var y = Math.floor(Math.random() * H);
+          var h = 1 + Math.floor(Math.random() * 5);
+          var dx = Math.round((Math.random() * 2 - 1) * 7 * this.glitchI);
+          ctx.drawImage(canvas, 0, y, W, h, dx, y, W, h);
         }
-      },
-
-      draw: function (ctx) {
-        var W = M.SCREEN_W, H = M.SCREEN_H;
-        // posiciones proporcionales a la resolución real del lienzo
-        function y(v) { return Math.round(v * H / 200); }
-        if (this.t < 3.2) {
-          // parpadeo de fotograma (cero alpha): el texto late
-          // encendiéndose y apagándose, como en 1987
-          if (Math.sin(this.t * 5) > -0.35) {
-            F.drawCenteredFit(ctx, 'CONTINUARA...', W / 2, y(74), M.C.BONE, {
-              scale: 2, spacing: 4, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, jitter: 1
-            });
-          }
-          F.drawCenteredFit(ctx, 'MISTICAS - ' + M.VERSION, W / 2, y(108), M.C.BONE2);
-        } else {
-          var st = game.state;
-          var secs = Math.max(0, Math.floor((performance.now() - st.startTime) / 1000));
-          var mm = ('0' + Math.floor(secs / 60)).slice(-2);
-          var ss = ('0' + (secs % 60)).slice(-2);
-
-          F.drawCenteredFit(ctx, 'PRIMERA NOCHE SUPERADA', W / 2, y(34), M.C.LMAG, { spacing: 1 });
-          F.drawCentered(ctx, '·', W / 2, y(48), M.C.DPURP);
-          F.drawCenteredFit(ctx, 'CORAZONES: ' + st.hearts + '/5', W / 2, y(62), M.C.BONE);
-          F.drawCenteredFit(ctx, 'VELAS: ' + st.candles + '/3', W / 2, y(76), M.C.LORAN);
-          F.drawCenteredFit(ctx, 'TIEMPO: ' + mm + ':' + ss, W / 2, y(90), M.C.BONE);
-          F.drawCenteredFit(ctx, 'NEXUS CUM NUMINE: ' + Math.round(st.nexus) + '%', W / 2, y(104), M.C.MAG);
-          F.drawCentered(ctx, '·', W / 2, y(118), M.C.DPURP);
-          if (Math.sin(this.t * 3.2) > -0.2) {
-            F.drawCenteredFit(ctx, 'PULSA UNA TECLA', W / 2, y(138), M.C.BONE2);
-          }
-          F.drawCenteredFit(ctx, 'ELLA TE ESPERA EN LA SIGUIENTE NOCHE', W / 2, y(168), M.C.CRIM);
+        var n = Math.round(30 * this.glitchI);
+        for (var p = 0; p < n; p++) {
+          ctx.fillStyle = M.PAL[Math.random() > 0.7 ? M.C.MAGENTA : M.C.GRAY];
+          ctx.fillRect(Math.floor(Math.random() * W), Math.floor(Math.random() * H), 2, 1);
         }
       }
-    };
+    }
   };
-
-  /* ============ GAME OVER ============ */
-  M.Scenes.gameover = function (game) {
-    return {
-      hud: false,
-      t: 0,
-      faceT: 0,
-      faceTimer: 2.6,
-
-      enter: function () {
-        M.Audio.stopMusic();
-        M.FX.glitchNow(1.4, 0.5);
-        M.Audio.sfx.alarm();
-      },
-
-      update: function (dt) {
-        this.t += dt;
-        if (this.faceT > 0) this.faceT -= dt;
-        this.faceTimer -= dt;
-        if (this.faceTimer <= 0) {
-          this.faceTimer = 3 + Math.random() * 3;
-          this.faceT = 0.09;
-          M.Audio.sfx.staticBurst();
-        }
-        if (this.t > 1.2 && (M.Input.hitAny() || M.Input.hit('fire'))) {
-          game.state.hearts = 5;
-          game.state.candles = 0;
-          game.state.nexus = game.nexusCheckpoint;
-          game.setScene('convent', { skipIntro: true });
-        }
-      },
-
-      draw: function (ctx) {
-        var W = M.SCREEN_W, H = M.SCREEN_H;
-        function y(v) { return Math.round(v * H / 200); }
-        M.FX.drawStatic(ctx, 0.5);
-        if (this.faceT > 0) {
-          M.Spr.drawFace(ctx, W / 2, y(88));
-        } else {
-          F.drawCenteredFit(ctx, 'TE HAN VISTO', W / 2, y(58), M.C.LCRIM, {
-            scale: 2, shadow: M.C.BLOOD, shadowDx: 2, shadowDy: 2, jitter: 1
-          });
-          F.drawCenteredFit(ctx, 'EL CONVENTO TE RECLAMA', W / 2, y(92), M.C.CRIM);
-          F.drawCenteredFit(ctx, 'CORAZONES: 0/5', W / 2, y(116), M.C.BONE2);
-        }
-        if (Math.sin(this.t * 3) > -0.2) {
-          F.drawCenteredFit(ctx, 'PULSA UNA TECLA PARA VOLVER A INTENTARLO', W / 2, y(142), M.C.BONE);
-        }
-      }
-    };
-  };
+  M.FX = FX;
 
   /* ============ EL JUEGO ============ */
   var Game = {
@@ -126,51 +87,20 @@
     time: 0,
     canvas: null,
     ctx: null,
-    _raf: 0,
 
     init: function () {
       this.canvas = document.getElementById('game');
       this.ctx = this.canvas.getContext('2d');
-      this.ctx.imageSmoothingEnabled = false;
+
+      // hornea la CHR-ROM completa
+      M.Tiles.init();
+      M.Spr.init();
 
       M.Input.init();
-      M.UI.init();
-      M.FX.init();
-      M.Entities.init();
-      M.Spr.preload();
+      M.Screen.init(this.canvas);
 
       var self = this;
-      window.addEventListener('resize', function () { self._resize(); });
-      window.addEventListener('orientationchange', function () {
-        setTimeout(function () { self._resize(); }, 60);
-      });
-      this.canvas.addEventListener('mousedown', function () {
-        M.Audio.init();
-        M.Audio.resume();
-        if (self.paused) {
-          // tocando la pantalla en pausa se reanuda
-          M.Input.anyPressed = true;
-          M.Input.pressed.pause = true;
-          return;
-        }
-        M.Input.anyPressed = true;
-        M.Input.pressed.fire = true;
-      });
-      // reanudar también con pointerdown sobre el monitor (móvil)
-      var crt = document.getElementById('crt');
-      if (crt) {
-        crt.addEventListener('pointerdown', function () {
-          M.Audio.init();
-          M.Audio.resume();
-          if (self.paused) {
-            M.Input.anyPressed = true;
-            M.Input.pressed.pause = true;
-          }
-        });
-      }
-      // en móvil, cualquier toque sobre la página avanza las pantallas
-      // sin HUD (arranque, portada, finales) — nadie se queda bloqueado.
-      // El joystick y los botones gestionan sus propias teclas.
+      // cualquier toque desbloquea el audio y avanza pantallas sin HUD
       document.body.addEventListener('pointerdown', function (ev) {
         M.Audio.init();
         M.Audio.resume();
@@ -179,7 +109,6 @@
           M.Input.pressed.pause = true;
           return;
         }
-        // los botones táctiles y el joystick gestionan sus propias teclas
         if (ev.target && ev.target.classList && ev.target.classList.contains('tbtn')) return;
         if (ev.target && ev.target.closest && ev.target.closest('#joy')) return;
         if (!self.scene || self.scene.hud === false) {
@@ -191,8 +120,6 @@
         if (document.hidden && self.scene && self.scene.hud !== false) self.paused = true;
       });
 
-      this._resize();
-      window.focus();
       this.setScene('boot');
 
       var last = performance.now();
@@ -204,7 +131,6 @@
           self.update(dt);
           self.draw();
         } catch (e) {
-          // el juego maldito no debe morir por un fotograma corrupto
           if (!self._errLogged) { console.error('MISTICAS:', e); self._errLogged = true; }
         }
         M.Input.endFrame();
@@ -213,164 +139,7 @@
       requestAnimationFrame(loop);
     },
 
-    /* Viewport con letterbox 4:3 (canon de las capturas reales):
-       el juego vive en un lienzo lógico FIJO de 320x240 — como el
-       monitor de 1987 — y se escala a la ventana con fit-contain:
-       factor entero en escritorio (nitidez 1:1), barras negras donde
-       haga falta. NUNCA se estira ni se recorta: el HUD completo y
-       todos los textos quedan SIEMPRE dentro del marco visible.
-       En táctil, el tubo se pega a la banda superior (cero espacios
-       muertos por encima) y el joystick flotante + FUEGO caen en el
-       negro lateral o bajo el tubo, según dé sitio: NUNCA sobre el
-       HUD ni la vista. */
-    _resize: function () {
-      var BW = 320, BH = 240;   // lienzo lógico fijo (4:3 exacto)
-      var vw = Math.max(200, window.innerWidth);
-      var vh = Math.max(150, window.innerHeight);
-      var touch = document.body.classList.contains('touch') ||
-        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-
-      // factor que quepa entero (fit-contain, sin estirar)
-      var s0 = Math.min(vw / BW, vh / BH);
-
-      var needT = 0, needB = 0;
-      if (touch) {
-        needT = M.TOUCH_TOP;   // 48: PAUSA + AUDIO
-        // si las bandas laterales del letterbox dan para el joystick
-        // (124 px), los controles viven en el negro lateral y el tubo
-        // ocupa toda la altura restante; si no, se reserva una zona
-        // inferior compacta para el stick y FUEGO
-        var sideBand = (vw - BW * s0) / 2;
-        needB = (sideBand < 124) ? M.TOUCH_BOTTOM_TALL : 0;
-        s0 = Math.min(vw / BW, (vh - needT - needB) / BH);
-      }
-
-      var s = s0;
-      // nitidez 1:1 en pantallas grandes (factor entero)
-      if (s >= 2) s = Math.floor(s);
-      if (s < 0.4) s = 0.4;
-
-      var cw = Math.round(BW * s);
-      var ch = Math.round(BH * s);
-
-      // posición vertical: en táctil, el tubo flota equilibrado en
-      // el espacio entre los botones de sistema (arriba) y la zona
-      // de controles (abajo, anclada al borde real): cero bloques
-      // muertos raros; en escritorio sigue centrado
-      var top;
-      if (touch) {
-        var freeV = Math.max(0, vh - needT - needB - ch);
-        top = Math.round(needT + freeV * 0.42);
-      } else {
-        top = Math.round((vh - ch) / 2);
-      }
-      if (top < 0) top = 0;
-      if (top + ch > vh) top = Math.max(0, vh - ch);
-      var left = Math.round((vw - cw) / 2);
-
-      this.canvas.style.position = 'absolute';
-      this.canvas.style.left = left + 'px';
-      this.canvas.style.top = top + 'px';
-      this.canvas.style.width = cw + 'px';
-      this.canvas.style.height = ch + 'px';
-
-      // el lienzo lógico NUNCA cambia: 320x240, cero recortes
-      this.canvas.width = BW;
-      this.canvas.height = BH;
-      this.ctx.imageSmoothingEnabled = false;
-
-      M.SCREEN_W = BW;
-      M.SCREEN_H = BH;
-      M.VIEW_H = BH - M.HUD_H;
-
-      // rect del tubo para colocar los controles sin pisarlo
-      this._tube = { left: left, top: top, w: cw, h: ch };
-
-      this._layoutTouch(touch);
-      this._syncAudioBtn();
-    },
-
-    /* Coloca el joystick flotante y FUEGO SIEMPRE fuera del tubo:
-       prefiere las bandas negras laterales del letterbox; si son
-       estrechas, la zona inferior reservada. PAUSA y AUDIO siguen
-       arriba. Como _resize mide el tubo real, jamás pisan el HUD. */
-    _layoutTouch: function (touch) {
-      if (!touch) return;   // sin táctil no hay nada que recolocar
-      var vw = window.innerWidth;
-      var vh = window.innerHeight;
-      var sa = this._safeAreas();
-
-      function pos(id, o) {
-        var el = document.getElementById(id);
-        if (!el) return;
-        el.style.left = (o.left !== undefined) ? o.left + 'px' : '';
-        el.style.right = (o.right !== undefined) ? o.right + 'px' : '';
-        el.style.top = (o.top !== undefined) ? o.top + 'px' : '';
-        el.style.bottom = (o.bottom !== undefined) ? o.bottom + 'px' : '';
-      }
-
-      // botones de sistema: banda superior
-      pos('t-pause', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) });
-      pos('t-audio', { top: Math.max(6, sa.top), right: Math.max(10, sa.right) + 54 });
-
-      // geometría del tubo tras el escalado
-      var tube = this._tube || { left: 0, top: 0, w: vw, h: vh * 0.7 };
-      var sideL = tube.left;
-      var sideR = vw - (tube.left + tube.w);
-      var tubeBottom = tube.top + tube.h;
-      var below = vh - tubeBottom;      // negro disponible bajo el tubo
-
-      // joystick flotante: banda lateral negra si cabe (104 px);
-      // si no, a la ALTURA DEL PULGAR: pegado al borde inferior en
-      // pantallas justas, y ligeramente elevado (dejando sitio a la
-      // firma de la cinta) cuando sobra negro. Nunca pisa el tubo.
-      var joy = document.getElementById('joy');
-      var jb = joy ? joy.getBoundingClientRect() : { width: 104, height: 104 };
-      var jw = jb.width, jh = jb.height;
-      // margen inferior deseado: 76 px (controles + firma debajo)
-      var jLift = Math.max(14, Math.min(76, vh - tubeBottom - jh - 24));
-      if (joy) {
-        if (sideL >= jw + 14) {
-          pos('joy', { left: Math.round((sideL - jw) / 2), bottom: Math.max(16, sa.bottom + 8) });
-        } else {
-          pos('joy', { left: Math.max(12, sa.left + 6), bottom: jLift });
-        }
-      }
-
-      // FUEGO: simétrico al joystick y alineado a su arco (centros
-      // a la misma altura cuando el negro deja margen)
-      var fire = document.getElementById('t-fire');
-      var fb = fire ? fire.getBoundingClientRect() : { width: 64, height: 64 };
-      var fw = fb.width, fh = fb.height;
-      var fLift = Math.max(16, Math.min(jLift + (jh - fh) / 2, vh - tubeBottom - fh - 24));
-      if (fire) {
-        if (sideR >= fw + 16) {
-          pos('t-fire', { right: Math.round((sideR - fw) / 2), bottom: Math.max(18, sa.bottom + 10) });
-        } else {
-          pos('t-fire', { right: Math.max(14, sa.right + 6), bottom: fLift });
-        }
-      }
-    },
-
-    // márgenes seguros (móviles con muesca) en px
-    _safeAreas: function () {
-      var cs = getComputedStyle(document.documentElement);
-      function px(name) {
-        var v = parseFloat(cs.getPropertyValue(name));
-        return isNaN(v) ? 0 : v;
-      }
-      return { top: px('--sat'), right: px('--sar'), bottom: px('--sab'), left: px('--sal') };
-    },
-
-    // refleja el estado de silencio en el botón táctil de audio
-    _syncAudioBtn: function () {
-      var b = document.getElementById('t-audio');
-      if (b) b.classList.toggle('muted', !!M.Audio.muted);
-    },
-
-    resetState: function () {
-      this.state = M.newGameState();
-    },
+    resetState: function () { this.state = M.newGameState(); },
 
     addNexus: function (n) {
       this.state.nexus = M.clamp(this.state.nexus + n, 0, 100);
@@ -381,9 +150,7 @@
       this.state.hearts = Math.max(0, this.state.hearts - n);
       this.state.deaths++;
       this.state.grace = 2.6;
-      if (this.state.hearts <= 0) {
-        this.setScene('gameover');
-      }
+      if (this.state.hearts <= 0) this.setScene('gameover');
     },
 
     setScene: function (name, opts) {
@@ -396,7 +163,7 @@
       this.scene = sc;
       this.pendingEnter = true;
       M.FX.fade = 1;
-      M.FX.letterbox = 0;
+      M.FX.fadeTarget = 0;
       if (sc.card) {
         M.UI.showCard(sc.card.scene, sc.card.title, sc.card.sub, sc.card.hold);
       } else {
@@ -448,14 +215,18 @@
             var e = s.ent, sp = s.speed || 2;
             var dx = s.x - e.gx, dy = s.y - e.gy;
             var d = Math.sqrt(dx * dx + dy * dy);
-            if (d < 0.08) { c.idx++; break; }
+            if (d < 0.08) {
+              if (e.pose !== undefined) e.pose = 'stand';
+              c.idx++;
+              break;
+            }
             var stp = Math.min(sp * dt, d);
             e.gx += (dx / d) * stp;
             e.gy += (dy / d) * stp;
             if (e.pose !== undefined) {
               e.pose = 'walk';
               e.animT += dt * 7;
-              e.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : (dy > 0 ? 'S' : 'N');
+              e.dir = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
             }
             return;
           }
@@ -468,7 +239,7 @@
             c.idx++;
             break;
           case 'fade':
-            M.FX.fadeTo(s.to, s.speed || 1.2, null);
+            M.FX.fadeTo(s.to, s.speed || 1.2);
             c.idx++;
             break;
           case 'nexus':
@@ -488,9 +259,12 @@
       if (this.state.nexusFlag > 0) this.state.nexusFlag -= dt;
       if (this.state.grace > 0) this.state.grace -= dt;
 
-      // cartela de escena: el mundo espera
+      // cartela de escena: el mundo espera a que se retire
       if (M.UI.card) {
-        if (M.UI.updateCard(dt)) this._enterScene();
+        if (M.UI.updateCard(dt)) {
+          M.UI.card = null;
+          this._enterScene();
+        }
         return;
       }
 
@@ -498,7 +272,7 @@
         this.paused = !this.paused;
       }
       if (this.paused) return;
-      if (M.Input.hit('mute')) { M.Audio.toggleMute(); this._syncAudioBtn(); }
+      if (M.Input.hit('mute')) M.Audio.toggleMute();
 
       M.UI.updateDialog(dt);
       if (this.scene && this.scene.update) this.scene.update(dt, this);
@@ -508,48 +282,52 @@
     draw: function () {
       var ctx = this.ctx;
       var W = M.SCREEN_W, H = M.SCREEN_H;
+
+      // banco de fundido -> paleta activa (afecta a TODO lo que
+      // se pinta con M.PAL: texto, HUD, dibujos procedurales)
+      var bank = M.FX.bank();
+      M.applyPaletteSwap(M.FADESWAP[bank]);
+      if (this.scene && this.scene.world) this.scene.world.fade = bank;
+
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, 0, W, H);
 
       if (this.scene && !M.UI.card) {
         if (this.scene.draw) this.scene.draw(ctx, this);
-        M.UI.drawHint(ctx, this.time);
+        M.UI.drawHint(ctx);
         if (this.scene.hud !== false) {
           M.UI.drawHUD(ctx, this.state, this.time);
         }
-        // lema latino diagonal: solo dentro del convento (canon)
-        if (this.scene.motto) M.UI.drawMotto(ctx);
       }
 
-      M.UI.drawDialog(ctx, this.time);
+      M.UI.drawDialog(ctx);
       M.FX.drawOver(ctx, this.canvas);
 
       if (M.UI.card) M.UI.drawCard(ctx);
 
       if (this.paused) {
-        // PAUSA de cartucho: panel negro SÓLIDO con marco (nada
-        // de velo translúcido sobre el mundo)
-        var cy = Math.round(M.VIEW_H / 2);
-        var pw = 236, ph = 74;
-        var pxl = Math.round(W / 2 - pw / 2), pyl = cy - 40;
+        // PAUSA de cartucho: panel negro SÓLIDO con marcos
+        var cy = Math.round(M.SCREEN_H / 2);
+        var pw = 220, ph = 72;
+        var px = Math.round(W / 2 - pw / 2), py = cy - 40;
         ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(pxl, pyl, pw, ph);
-        ctx.fillStyle = M.PAL[M.C.VDARK];
-        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, ph - 4);
-        ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, 1);
-        // marco doble: salmón fuera, púrpura dentro (píxel a píxel)
-        ctx.fillStyle = M.PAL[M.C.LMAG];
-        ctx.fillRect(pxl, pyl, pw, 1); ctx.fillRect(pxl, pyl + ph - 1, pw, 1);
-        ctx.fillRect(pxl, pyl, 1, ph); ctx.fillRect(pxl + pw - 1, pyl, 1, ph);
-        ctx.fillStyle = M.PAL[M.C.PURP];
-        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, 1); ctx.fillRect(pxl + 2, pyl + ph - 3, pw - 4, 1);
-        ctx.fillRect(pxl + 2, pyl + 2, 1, ph - 4); ctx.fillRect(pxl + pw - 3, pyl + 2, 1, ph - 4);
-        F.drawCenteredFit(ctx, 'PAUSA', W / 2, cy - 16, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
+        ctx.fillRect(px, py, pw, ph);
+        ctx.fillStyle = M.PAL[M.C.MAGENTA];
+        ctx.fillRect(px, py, pw, 1); ctx.fillRect(px, py + ph - 1, pw, 1);
+        ctx.fillRect(px, py, 1, ph); ctx.fillRect(px + pw - 1, py, 1, ph);
+        ctx.fillStyle = M.PAL[M.C.DPURPLE];
+        ctx.fillRect(px + 2, py + 2, pw - 4, 1); ctx.fillRect(px + 2, py + ph - 3, pw - 4, 1);
+        ctx.fillRect(px + 2, py + 2, 1, ph - 4); ctx.fillRect(px + pw - 3, py + 2, 1, ph - 4);
+        F.drawCenteredFit(ctx, 'PAUSA', W / 2, cy - 18, M.C.MAGENTA, {
+          scale: 2, shadow: M.C.DPURPLE, shadowDx: 2, shadowDy: 2
+        });
         var touchMode = document.body.classList.contains('touch');
-        F.drawCenteredFit(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, cy + 10, M.C.BONE2);
-        F.drawCenteredFit(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, cy + 24, M.C.CRIM);
+        F.drawCenteredFit(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO',
+          W / 2, cy + 8, M.C.GRAY);
       }
+
+      // restaura la paleta maestra (los horneos ya tienen sus bancos)
+      M.applyPaletteSwap(M.PALSWAP[1]);
     }
   };
 

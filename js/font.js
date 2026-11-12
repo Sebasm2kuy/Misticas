@@ -1,9 +1,11 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — font.js
-   Fuente pixel 5x7 embebida (sin dependencias externas).
-   Mayúsculas, dígitos, puntuación española (¡ ¿ Ñ) y flechas.
-   Los acentos se normalizan: como en las cintas de 1987.
+   MÍSTICAS — (C) 1987 — js/font.js
+   Fuente pixel 5x7 grabada en la CHR-ROM del cartucho.
+   Cada glifo son 7 filas de 5 bits: se pinta píxel a píxel con
+   fillRect. Sin antialiasing, sin alpha, sin sombras difusas —
+   la "sombra" es una copia dura desplazada 1 píxel, como en
+   1987. Los acentos se normalizan (cinta de casete).
    ============================================================ */
 (function (M) {
 
@@ -75,7 +77,6 @@
     '♪': [0x06, 0x02, 0x02, 0x02, 0x0E, 0x1E, 0x1F]
   };
 
-  // Normalización de acentos (como hacían las cintas de 1987)
   var NORM = {
     'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ú': 'U', 'Ü': 'U',
     'á': 'A', 'é': 'E', 'í': 'I', 'ó': 'O', 'ú': 'U', 'ü': 'U',
@@ -83,81 +84,72 @@
   };
 
   function normalize(text) {
-    var out = '', ch, up;
+    var out = '', ch;
     for (var i = 0; i < text.length; i++) {
       ch = text[i];
       if (NORM[ch]) ch = NORM[ch];
-      up = ch.toUpperCase();
-      out += up;
+      out += ch.toUpperCase();
     }
     return out;
   }
 
   var Font = {
-    GW: 5, GH: 7, STEP: 6, // paso base en px (5 de glifo + 1 de separación)
+    GW: 5, GH: 7, STEP: 6,
 
-    // Devuelve longitud en px del texto con la escala dada
     measure: function (text, scale) {
       scale = scale || 1;
       return normalize(text).length * this.STEP * scale - scale;
     },
 
-    /* Dibuja texto pixel. opts: { scale, color (índice de paleta),
-       shadow (índice o null), shadowDx, shadowDy, spacing (px extra
-       por letra), jitter (px de temblor por letra), align } */
+    /* Dibuja texto pixel. opts: { scale, shadow (índice paleta),
+       shadowDx, shadowDy, spacing, jitter, align } */
     draw: function (ctx, text, x, y, color, opts) {
       opts = opts || {};
       var scale = opts.scale || 1;
       var spacing = opts.spacing || 0;
       var t = normalize(text);
       var px = Math.round(x), py = Math.round(y);
-      var cx = px;
 
-      if (opts.align === 'center') px = Math.round(x - this.measure(text, scale) / 2 - (spacing * (t.length - 1)) / 2);
-      if (opts.align === 'right') px = Math.round(x - this.measure(text, scale) - spacing * (t.length - 1));
+      if (opts.align === 'center') px = Math.round(x - (this.measure(t, scale) + spacing * (t.length - 1)) / 2);
+      if (opts.align === 'right') px = Math.round(x - this.measure(t, scale) - spacing * (t.length - 1));
 
-      var rows, glyph, bit, gx, gy, ch, jx, jy;
+      var glyph, bit, k;
       for (var i = 0; i < t.length; i++) {
-        ch = t[i];
-        glyph = G[ch] || G['?'];
-        jx = jy = 0;
-        if (opts.jitter) { jx = (Math.random() * opts.jitter * 2 - opts.jitter) | 0; jy = (Math.random() * opts.jitter * 2 - opts.jitter) | 0; }
-        for (gy = 0; gy < 7; gy++) {
-          rows = glyph[gy];
-          for (gx = 0; gx < 5; gx++) {
-            bit = (rows >> (4 - gx)) & 1;
-            if (!bit) continue;
-            if (opts.shadow !== undefined && opts.shadow !== null) {
-              ctx.fillStyle = M.PAL[opts.shadow];
-              ctx.fillRect(px + (gx * scale) + (opts.shadowDx || 1) + jx, py + (gy * scale) + (opts.shadowDy || 1) + jy, scale, scale);
+        glyph = G[t[i]] || G['?'];
+        var jx = 0, jy = 0;
+        if (opts.jitter) {
+          jx = (Math.random() * opts.jitter * 2 - opts.jitter) | 0;
+          jy = (Math.random() * opts.jitter * 2 - opts.jitter) | 0;
+        }
+        // sombra dura (copia desplazada, cero alpha)
+        if (opts.shadow !== undefined && opts.shadow !== null) {
+          ctx.fillStyle = M.PAL[opts.shadow];
+          for (var gy = 0; gy < 7; gy++) {
+            for (var gx = 0; gx < 5; gx++) {
+              bit = (glyph[gy] >> (4 - gx)) & 1;
+              if (bit) ctx.fillRect(px + gx * scale + (opts.shadowDx || 1) + jx, py + gy * scale + (opts.shadowDy || 1) + jy, scale, scale);
             }
           }
         }
+        // tinta
+        ctx.fillStyle = M.PAL[color];
         for (gy = 0; gy < 7; gy++) {
-          rows = glyph[gy];
           for (gx = 0; gx < 5; gx++) {
-            bit = (rows >> (4 - gx)) & 1;
-            if (!bit) continue;
-            ctx.fillStyle = M.PAL[color];
-            ctx.fillRect(px + gx * scale + jx, py + gy * scale + jy, scale, scale);
+            bit = (glyph[gy] >> (4 - gx)) & 1;
+            if (bit) ctx.fillRect(px + gx * scale + jx, py + gy * scale + jy, scale, scale);
           }
         }
         px += this.STEP * scale + spacing;
       }
     },
 
-    // Atajo centrado
     drawCentered: function (ctx, text, cx, y, color, opts) {
       opts = opts || {};
       opts.align = 'center';
       this.draw(ctx, text, cx, y, color, opts);
     },
 
-    /* Centrado a prueba de cualquier resolución:
-       1) si cabe con la escala pedida, se dibuja tal cual;
-       2) si no cabe y la escala es >1, se reduce la escala;
-       3) si aun no cabe, se parte en varias lineas centradas.
-       Devuelve la Y inmediatamente inferior a la ultima linea. */
+    /* Centrado robusto: reduce escala y parte en líneas si no cabe */
     drawCenteredFit: function (ctx, text, cx, y, color, opts) {
       opts = opts || {};
       var t = String(text);
@@ -167,12 +159,10 @@
       var lh = 7 * scale + 3;
       var w = this.measure(t, scale) + spacing * Math.max(0, t.length - 1);
       if (w > maxW && scale > 1) {
-        // rebajar escala antes de partir en lineas
         for (var sc = scale - 1; sc >= 1; sc--) {
-          w = this.measure(t, sc) + spacing * Math.max(0, t.length - 1);
-          if (w <= maxW) { scale = sc; break; }
+          if (this.measure(t, sc) + spacing * Math.max(0, t.length - 1) <= maxW) { scale = sc; break; }
         }
-        if (w > maxW) scale = 1;
+        if (this.measure(t, scale) + spacing * Math.max(0, t.length - 1) > maxW) scale = 1;
         lh = 7 * scale + 3;
       }
       var fits = this.measure(t, scale) + spacing * Math.max(0, t.length - 1) <= maxW;
@@ -182,7 +172,6 @@
         this.draw(ctx, t, cx, y, color, o);
         return y + lh;
       }
-      // partir en lineas que quepan y centrarlas
       var maxChars = Math.max(6, Math.floor((maxW + scale) / (this.STEP * scale + spacing)));
       var words = t.split(' '), lines = [], cur = '';
       for (var i = 0; i < words.length; i++) {

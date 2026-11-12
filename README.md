@@ -34,7 +34,7 @@ La primera noche, completa y jugable de principio a fin:
 
 | Tecla | Acción |
 |---|---|
-| Flechas / WASD | Moverse (isométrico) |
+| Flechas / WASD | Moverse |
 | Espacio / Enter / E | Hablar, examinar, colarse por la ventana |
 | P / Esc | Pausa (o botón táctil II) |
 | M | Silencio (o botón táctil ♪) |
@@ -45,45 +45,50 @@ derecha: **II (pausa)** y **♪ (audio)**, anclados a los bordes con
 márgenes seguros (notch). Tocar la pantalla en pausa reanuda;
 ningún punto del juego requiere teclado físico.
 
-## Pantalla completa
+## Pantalla
 
-El juego ocupa el **100% de la ventana** (sin cajita ni marcos):
-
-- **Escritorio:** factor de píxel entero (nitidez 1:1); la resolución
-  interna del lienzo se extiende para cubrir todo el monitor y la
-  cámara simplemente muestra más mundo.
-- **Móvil horizontal:** escala continua que aprovecha todo el
-  ancho/alto útil sin recortes extraños ni distorsión.
-- **Móvil vertical:** el alto interno del mundo se muestra completo
-  (320 px) y la cámara se estrecha siguiendo al jugador: el tubo
-  queda a sangre completa (100% × 100%) con píxel gordo auténtico.
-  El HUD cambia a formato compacto (corazones y slots arriba,
-  barra NEXUS debajo) y los textos largos se parten en líneas que
-  caben en el lienzo estrecho.
-- El HUD se ancla a los bordes (corazones a la izquierda, marco
-  NEXUS centrado, slots a la derecha) en cualquier resolución.
+El juego vive en un lienzo lógico FIJO de **256×240 px** (la norma NTSC
+del cartucho), escalado con **factor entero** siempre que es posible
+(nitidez 1:1) y letterbox negro alrededor: nunca se estira, nunca se
+recorta, el HUD queda siempre dentro del marco. En móvil los
+controles táctiles viven en el negro del letterbox, nunca sobre el
+tubo ni sobre el HUD, respetando los márgenes seguros (notch).
 
 ## HUD (fiel al canon)
 
-La barra inferior replica el HUD de las capturas reales de la
-audioserie: 5 corazones rojos con contorno de sangre y **medios
-corazones** a la izquierda; el marco central **NEXUS CUM NUMINE**
-con doble borde (morado/carmesí) y barra de progreso salmón; y
-a la derecha tres slots de objetos con el contador debajo.
-Los textos en latín aparecen solo en su momento: en lápidas
-examinables y en la caja de diálogo inferior, nunca flotando
-en el cielo de las escenas exteriores.
+Barra inferior fija de 24 px con filete magenta: 5 corazones carmesí a
+la izquierda, contador de **VELAS** (velones que se encienden al
+recogerlos) y el marcador **NEXUS** que parpadea en blanco al subir.
+La caja de diálogo de narrativa es el clásico panel negro con doble
+borde de los RPG de 1987, con máquina de escribir y flecha ▼.
 
-## Cómo jugar
+## El motor (réplica Famicom auténtica)
+
+Construido **desde cero** en HTML5 Canvas, sin dependencias. Reglas
+innegociables del cartucho:
+
+- **Cero degradados, cero luces suaves, cero transparencias.** Todo se
+  dibuja con `fillRect` de píxeles sólidos; la pureza se verifica
+  automáticamente (cada píxel del canvas pertenece a la paleta y tiene
+  alpha 255).
+- **Paleta 2C02 estricta de 16 colores**: negro absoluto, violetas y
+  púrpuras sólidos para muros, magenta brillante y carmesí para
+  puertas, velas y la capucha del niño.
+- **Dioramas cerrados**: recintos estáticos amurallados de ladrillo
+  con **arcos góticos equiláteros** (dovelas violetas, clave magenta),
+  suelos de losas con juntas — jamás damero.
+- **Luz por registros de paleta**, como la PPU: las velas "iluminan"
+  sustituyendo el banco de color de las teselas contiguas (púrpura →
+  violeta → violeta vivo), nunca con alpha.
+- **Sprites de matriz de píxeles** con contorno negro macizo, sin
+  sombra difusa bajo los pies.
+- **Fundidos por sustitución de paleta** (5 bancos) y glitch de bandas
+  desplazadas: nada de velos translúcidos.
+- **Audio chiptune** 100% sintetizado (onda cuadrada, ruido de
+  casete, campanas, latidos) con planificador que no se corta.
 
 Abre `index.html` en cualquier navegador moderno. No hay dependencias,
-no hay compilación, no hay CDN: todo (gráficos, fuente pixel, música de
-*beeper*, ruido de casete, efectos CRT) se genera por código.
-
-La paleta está calibrada contra las capturas reales de la ficción:
-negro absoluto, morados `#7A1FD0`/`#8A2BE2`, rosa salmón `#FFA8A0`,
-rojo vivo `#E8281E` y hueso `#E8E0D0`, con relleno plano y contorno
-negro (sin degradados, estilo CGA/8-bit sobre monitor CRT).
+no hay compilación, no hay CDN.
 
 ## Desplegar en GitHub Pages
 
@@ -100,26 +105,21 @@ El archivo `.nojekyll` (incluido) evita que GitHub Pages ignore algo.
 ## Estructura del código
 
 ```
-├── index.html          Entrada y orden de carga
-├── css/style.css       Monitor CRT (scanlines, viñeta, parpadeo)
+├── index.html          Entrada y orden de carga del cartucho
+├── css/style.css       Carcasa plana (letterbox + joystick translúcido)
 └── js/
-    ├── config.js       Paleta de 16 colores y constantes
-    ├── font.js         Fuente pixel 5×7 embebida (con Ñ)
-    ├── input.js        Teclado + táctil
-    ├── audio.js        Beeper: chiptune, casete, truenos, latidos
-    ├── sprites.js      Pixel-art por mapas de caracteres + árbol/luna
-    ├── iso.js          Motor isométrico (teselas 16×8, orden pintor)
-    ├── fx.js           Glitch, fundidos, relámpagos, niebla, cielo
-    ├── ui.js           HUD (5 corazones, NEXUS CUM NUMINE, contadores)
-    ├── entities.js     Niño, niña guía, hermana (visión y sigilo)
-    ├── world.js        Base de escenas de mundo
-    └── scenes/
-        ├── boot.js     Arranque + carga de cinta
-        ├── title.js    Portada
-        ├── tree.js     Escena 1: el árbol
-        ├── cemetery.js Escena 2: el campo santo
-        ├── conventext.js Escena 3: la fachada
-        └── convent.js  Escena 4: los pasillos (sigilo)
+    ├── config.js       Paleta 2C02, bancos de luz/fundido, constantes
+    ├── audio.js        Chip de sonido: chiptune, casete, truenos
+    ├── font.js         Fuente pixel 5×7 grabada en CHR (con Ñ)
+    ├── input.js        Cruceta + joystick táctil flotante + FUEGO
+    ├── screen.js       Televisor: 256×240, factor entero, letterbox
+    ├── tiles.js        CHR-ROM: teselas 8×8 horneadas ×3 luces ×5 fundidos
+    ├── sprites.js      Matrices de píxeles + arcos góticos procedurales
+    ├── room.js         Dioramas: muros, ogivas, lajas, mapa de luz
+    ├── entities.js     Niño, ella, la hermana (visión), ratas, murciélagos
+    ├── ui.js           HUD, caja de diálogo, pistas, cartelas, PAUSA
+    ├── scenes.js       Las 8 pantallas (boot, title, 4 escenas, finales)
+    └── main.js         Bucle 60 FPS, cinemáticas, daño, NEXUS, glitch
 ```
 
 ## Hoja de ruta (siguientes fases)

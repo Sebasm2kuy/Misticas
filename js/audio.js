@@ -1,13 +1,13 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — audio.js
-   Motor de audio "beeper": onda cuadrada, ruido de cinta,
-   zumbido de monitor, campanas, truenos, latidos y música
-   chiptune procedural. Cero archivos: todo es síntesis.
+   MÍSTICAS — (C) 1987 — js/audio.js
+   El chip de sonido: síntesis pura (onda cuadrada, triángulo,
+   ruido). Cero archivos de audio, cero dependencias. El
+   planificador programa notas con antelación para que la música
+   NUNCA se corte, ni siquiera con la pestaña en segundo plano.
    ============================================================ */
 (function (M) {
 
-  // frecuencia a partir de nota MIDI
   function mf(n) { return 440 * Math.pow(2, (n - 69) / 12); }
 
   var Audio = {
@@ -15,7 +15,7 @@
     master: null,
     muted: false,
     unlocked: false,
-    music: { name: null, step: 0, next: 0, tempo: 0.30 },
+    music: { name: null, step: 0, next: 0 },
     windNodes: null,
     humNode: null,
 
@@ -40,8 +40,7 @@
       return this.muted;
     },
 
-    /* --- ladrillos de síntesis --- */
-
+    /* ---- ladrillos de síntesis ---- */
     beep: function (freq, dur, opts) {
       if (!this.ctx || this.muted) return;
       opts = opts || {};
@@ -82,7 +81,7 @@
       src.start(t); src.stop(t + dur + 0.02);
     },
 
-    /* --- zumbido continuo del monitor CRT --- */
+    /* ---- zumbido continuo del televisor ---- */
     startHum: function () {
       if (!this.ctx || this.humNode) return;
       var o = this.ctx.createOscillator();
@@ -94,7 +93,7 @@
       this.humNode = { o: o, g: g };
     },
 
-    /* --- viento (para escenas exteriores) --- */
+    /* ---- viento (exteriores) ---- */
     wind: function (on) {
       if (!this.ctx) return;
       if (on && !this.windNodes && !this.muted) {
@@ -121,7 +120,7 @@
       }
     },
 
-    /* --- efectos con nombre --- */
+    /* ---- efectos con nombre ---- */
     sfx: {
       blip: function () { A.beep(1180, 0.04, { vol: 0.05 }); },
       typeKey: function () { A.beep(820 + Math.random() * 200, 0.03, { vol: 0.05 }); },
@@ -170,7 +169,6 @@
         A.noise(0.7, { freq: 800, freqTo: 300, vol: 0.05, when: 0.2 });
       },
       whoosh: function () { A.noise(0.5, { freq: 500, freqTo: 2400, vol: 0.05 }); },
-      // Escrito "PULSA PLAY EN LA CINTA": chirlido de carga de casete
       tapePilot: function () {
         if (!A.ctx || A.muted) return;
         for (var i = 0; i < 26; i++) {
@@ -188,20 +186,14 @@
       staticBurst: function () { A.noise(0.3, { freq: 3000, vol: 0.09, filter: 'highpass' }); }
     },
 
-    /* --- música: pequeñas melodías en la menor, canal beeper --- */
+    /* ---- música: melodías en La menor, canal de onda cuadrada ---- */
     SONGS: {
-      /* Cada canción: { tempo (s/paso), mel: [[nota|null, pasos]...],
-         bass: [[nota|null, pasos]...] } nota = MIDI */
       title: {
         tempo: 0.34,
         mel: [
           [69, 2], [72, 1], [71, 1], [69, 2], [76, 2], [74, 1], [72, 1],
           [71, 4], [68, 1], [69, 1], [71, 2], [72, 1], [71, 1],
           [69, 4], [null, 2], [64, 1], [68, 1], [69, 6], [null, 2]
-        ],
-        bass: [
-          [45, 8], [45, 8], [40, 8], [45, 6], [null, 2],
-          [45, 8], [45, 8], [40, 8], [45, 8]
         ]
       },
       tree: {
@@ -210,8 +202,7 @@
           [64, 2], [67, 1], [69, 2], [71, 1], [69, 2], [67, 1],
           [64, 3], [null, 2], [62, 1], [64, 2], [67, 2],
           [69, 4], [null, 4]
-        ],
-        bass: [[40, 8], [40, 8], [45, 8], [40, 8]]
+        ]
       },
       cemetery: {
         tempo: 0.5,
@@ -219,8 +210,7 @@
           [62, 3], [63, 1], [62, 2], [null, 2],
           [58, 3], [62, 1], [58, 2], [null, 2],
           [57, 4], [null, 4]
-        ],
-        bass: [[38, 8], [37, 8], [38, 8], [33, 8]]
+        ]
       },
       convent: {
         tempo: 0.46,
@@ -228,23 +218,20 @@
           [57, 2], [60, 1], [64, 2], [63, 1], [60, 2],
           [57, 3], [null, 2], [56, 1], [57, 1], [60, 2], [63, 2],
           [64, 4], [null, 2]
-        ],
-        bass: [[33, 8], [33, 8], [32, 8], [33, 8]]
+        ]
       },
       ending: {
         tempo: 0.4,
         mel: [
           [69, 2], [71, 1], [72, 2], [76, 2],
           [74, 2], [72, 1], [71, 1], [69, 4], [null, 2]
-        ],
-        bass: [[45, 8], [40, 8], [45, 8], [45, 8]]
+        ]
       }
     },
 
     playSong: function (name) {
       this.music.name = name;
       this.music.step = 0;
-      this.music.bassStep = 0;
       if (this.ctx) this.music.next = this.ctx.currentTime + 0.1;
     },
 
@@ -258,22 +245,19 @@
       var now = this.ctx.currentTime;
 
       while (this.music.next < now + 0.35) {
-        // melodía
         var acc = 0, i, ev = null;
         for (i = 0; i < song.mel.length; i++) {
           if (this.music.step >= acc && this.music.step < acc + song.mel[i][1]) { ev = song.mel[i]; break; }
           acc += song.mel[i][1];
         }
-        if (!ev) { this.music.step = 0; continue; } // bucle
+        if (!ev) { this.music.step = 0; continue; }
         if (ev[0] !== null) {
           var when = this.music.next - now;
           this.beep(mf(ev[0]), song.tempo * ev[1] * 0.92, { vol: 0.055, when: Math.max(0, when) });
-          // "eco" de beeper: repetición tenue
           this.beep(mf(ev[0]), song.tempo * ev[1] * 0.5, { vol: 0.018, when: Math.max(0, when) + song.tempo * ev[1] });
         }
         this.music.next += song.tempo * ev[1];
         this.music.step += ev[1];
-        // longitud total del bucle
         var total = 0;
         for (i = 0; i < song.mel.length; i++) total += song.mel[i][1];
         if (this.music.step >= total) this.music.step = 0;

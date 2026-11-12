@@ -1,1564 +1,1126 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — sprites.js
-   Pixel-art definido como mapas de caracteres (paleta 0-F).
-   '.'=transparente, '0'-'9'/'A'-'F' = índice de paleta.
-   PERSONAJES rediseñados a mano píxel a píxel según el canon de
-   las capturas reales del podcast (Dinamic/UMG, Amstrad 1987):
-   - EL NIÑO 16x24: capucha roja con vivo azul-violeta, cara
-     salmón, chaqueta roja, pantalón azul-morado, botas sangre.
-   - LA NIÑA 16x26: pelo violeta-oscuro, vestido blanco largo
-     con pliegues en hueso.
-   - LA HERMANA 18x28: hábito oscuro con cofia de hueso y vela.
-   Los grandes (árbol, luna, arcos, escaleras, puerta) se
-   generan por código en canvas pre-renderizado.
+   MÍSTICAS — (C) 1987 — js/sprites.js
+   Los sprites: matrices de píxeles de un solo plano, contornos
+   negros macizos, cero antialiasing, cero transparencia parcial.
+   Se hornean a canvas por banco de fundido (5) igual que las
+   teselas. Los personajes NUNCA proyectan sombra difusa: en
+   1987 los sprites flotaban sobre el suelo y punto.
+
+   Mapa de caracteres -> índice de paleta:
+     . = transparente   K = 0 negro      V = 1 violeta oscuro
+     v = 2 violeta      P = 3 púrpura    p = 4 púrpura vivo
+     M = 5 magenta      C = 6 carmesí    c = 7 carmesí oscuro
+     R = 8 rojo         O = 9 naranja    Y = 10 amarillo
+     W = 11 blanco      G = 12 gris      g = 13 gris oscuro
+     S = 14 hueso/piel  L = 15 lila
    ============================================================ */
 (function (M) {
 
-  var S = {}; // banco de sprites
+  var CH = {
+    '.': -1, 'K': 0, 'V': 1, 'v': 2, 'P': 3, 'p': 4, 'M': 5,
+    'C': 6, 'c': 7, 'R': 8, 'O': 9, 'Y': 10, 'W': 11,
+    'G': 12, 'g': 13, 'S': 14, 'L': 15
+  };
 
-  function spr(w, h, rows) {
-    // aviso de anchura inconsistente (solo consola)
-    for (var i = 0; i < rows.length; i++) {
-      if (rows[i].length !== w) {
-        console.warn('MISTICAS: sprite con fila de ancho distinto', i, rows[i].length, w);
-      }
-    }
-    return { w: w, h: h, rows: rows };
-  }
+  /* ================= EL NIÑO (capucha roja) 16x20 ================= */
 
-/* ==== EL NIÑO (16x24) ====*/
-
-  
-  S.boyS_stand = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..083777777380..',
-    '..037777777730..',
-    '..037707707730..',
-    '..037777777730..',
-    '...0377777730...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '...0333..3330...',
-    '...0333..3330...',
-    '...0FFF..FFF0...',
-    '...0FFF..FFF0...',
-    '....000..000....'
-  ]);
-
-  
-  S.boyS_walkA = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..083777777380..',
-    '..037777777730..',
-    '..037707707730..',
-    '..037777777730..',
-    '...0377777730...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '..0330....0330..',
-    '..0330....0330..',
-    '..0FFF....FFF0..',
-    '..0FFF....FFF0..',
-    '...000....000...'
-  ]);
-
-  
-  S.boyS_walkB = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..083777777380..',
-    '..037777777730..',
-    '..037707707730..',
-    '..037777777730..',
-    '...0377777730...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '....03333330....',
-    '....03333330....',
-    '....0FFFFFF0....',
-    '....0FFFFFF0....',
-    '.....000000.....'
-  ]);
-
-  
-  S.boyN_stand = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..088888888880..',
-    '..08888888FF80..',
-    '..088880888880..',
-    '..088888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '...0333..3330...',
-    '...0333..3330...',
-    '...0FFF..FFF0...',
-    '...0FFF..FFF0...',
-    '....000..000....'
-  ]);
-
-  
-  S.boyN_walkA = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..088888888880..',
-    '..08888888FF80..',
-    '..088880888880..',
-    '..088888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '..0330....0330..',
-    '..0330....0330..',
-    '..0FFF....FFF0..',
-    '..0FFF....FFF0..',
-    '...000....000...'
-  ]);
-
-  
-  S.boyN_walkB = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..088888888880..',
-    '..08888888FF80..',
-    '..088880888880..',
-    '..088888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '..088888888880..',
-    '..088888888880..',
-    '..038888888830..',
-    '...0888888880...',
-    '...0333333330...',
-    '....03333330....',
-    '....03333330....',
-    '....0FFFFFF0....',
-    '....0FFFFFF0....',
-    '.....000000.....'
-  ]);
-
-  
-  S.boyW_stand = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..087777388880..',
-    '..077077388880..',
-    '..077773388880..',
-    '..077773388880..',
-    '..07773388880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08F888888880..',
-    '..03F888888880..',
-    '..038888888880..',
-    '..038888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '...0333333330...',
-    '....033.0330....',
-    '....033.0330....',
-    '....0FF.0FF0....',
-    '....0FF.0FF0....',
-    '.....00.00......'
-  ]);
-
-  
-  S.boyW_walkA = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..087777388880..',
-    '..077077388880..',
-    '..077773388880..',
-    '..077773388880..',
-    '..07773388880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08F888888880..',
-    '..03F888888880..',
-    '..038888888880..',
-    '..038888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '...0333333330...',
-    '...0333..0333...',
-    '...0330....033..',
-    '...0FFF....0FF..',
-    '...0FF0....0FF..',
-    '...00......00...'
-  ]);
-
-  
-  S.boyW_walkB = spr(16, 24, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..087777388880..',
-    '..077077388880..',
-    '..077773388880..',
-    '..077773388880..',
-    '..07773388880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..08F888888880..',
-    '..03F888888880..',
-    '..038888888880..',
-    '..038888888880..',
-    '...0888888880...',
-    '...0888888880...',
-    '...0333333330...',
-    '....0333330.....',
-    '.....033330.....',
-    '....0FFFFF0.....',
-    '.....0FFFF0.....',
-    '......0000......'
-  ]);
-
-  
-  S.boySit = spr(16, 16, [
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '...0888888880...',
-    '..088888888880..',
-    '..083777777380..',
-    '..037777777730..',
-    '..037707707730..',
-    '..037777777730..',
-    '...0377777730...',
-    '..088888888880..',
-    '..08FF88888880..',
-    '..08FF88888880..',
-    '.03333333333330.',
-    '..0FFF3333FFF0..',
-    '..0000....0000..'
-  ]);
-
-  
-  S.boyHide = spr(16, 14, [
-    '................',
-    '.....088880.....',
-    '....08888880....',
-    '...0888888880...',
-    '..088888888880..',
-    '..083777777380..',
-    '..037707707730..',
-    '..037777777730..',
-    '..088888888880..',
-    '.08888888888880.',
-    '.08FF88888888880.',
-    '.03333333333330.',
-    '..0FFF....FFF0..',
-    '..0000....0000..'
-  ]);
-
-/* ==== LA NIÑA (16x26) ====*/
-
-  
-  S.girlS_idle = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '...022CCCC220...',
-    '...02CCCCCC20...',
-    '...02C0CC0C20...',
-    '...02CCCCCC20...',
-    '...022CCCC220...',
-    '....02222220....',
-    '...0222222220...',
-    '..0222EEEE2220..',
-    '..022EEEEEE220..',
-    '..02EEEEEEEE20..',
-    '..0EEEEEEEEEE0..',
-    '..0ECEEEEEECE0..',
-    '..0EEEEEEEEEE0..',
-    '.0EEEEEEEEEEEE0.',
-    '.0EECEEEEEECEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0ECEEEEEEEECE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '..0CCEEEEEECC0..',
-    '.0CCCCCCCCCCCC0.',
-    '...0CC0..0CC0...',
+  var HOOD_DOWN_0 = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCSSSSCCK...',
+    '...KCSKSSKSCK...',
+    '...KCSSSSSSCK...',
+    '....KCSSSCK.....',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCCK..',
+    '..KCCcCCCCcCCK..',
+    '..KSCcCCCCcCSK..',
+    '...KCCCCCCCCK...',
+    '...KcCCCCCCcK...',
+    '...KKKKKKKKKK...',
+    '....KcC..CcK....',
+    '....KcC..CcK....',
+    '....KKK..KKK....',
+    '...KKKK..KKKK...',
     '................'
-  ]);
+  ];
 
-  
-  S.girlS_walkA = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '...022CCCC220...',
-    '...02CCCCCC20...',
-    '...02C0CC0C20...',
-    '...02CCCCCC20...',
-    '...022CCCC220...',
-    '....02222220....',
-    '...0222222220...',
-    '..0222EEEE2220..',
-    '..022EEEEEE220..',
-    '..02EEEEEEEE20..',
-    '..0EEEEEEEEEE0..',
-    '..0ECEEEEEECE0..',
-    '..0EEEEEEEEEE0..',
-    '.0EEEEEEEEEEEE0.',
-    '.0EECEEEEEECEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0ECEEEEEEEECE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0CCEEEEEECC0...',
-    '.0CCCCCCCCCCCC0.',
-    '.0CC0....0CC0...',
+  var HOOD_DOWN_1 = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCSSSSCCK...',
+    '...KCSKSSKSCK...',
+    '...KCSSSSSSCK...',
+    '....KCSSSCK.....',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCCK..',
+    '..KCCcCCCCcCCK..',
+    '..KSCcCCCCcCSK..',
+    '...KCCCCCCCCK...',
+    '...KcCCCCCCcK...',
+    '...KKKKKKKKKK...',
+    '....KcC..CcK....',
+    '....KKK..CcK....',
+    '..........KKK...',
+    '.........KKKK...',
     '................'
-  ]);
+  ];
 
-  
-  S.girlS_walkB = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '...022CCCC220...',
-    '...02CCCCCC20...',
-    '...02C0CC0C20...',
-    '...02CCCCCC20...',
-    '...022CCCC220...',
-    '....02222220....',
-    '...0222222220...',
-    '..0222EEEE2220..',
-    '..022EEEEEE220..',
-    '..02EEEEEEEE20..',
-    '..0EEEEEEEEEE0..',
-    '..0ECEEEEEECE0..',
-    '..0EEEEEEEEEE0..',
-    '.0EEEEEEEEEEEE0.',
-    '.0EECEEEEEECEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0ECEEEEEEEECE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '...0CCEEEEEECC0.',
-    '...0CCCCCCCCCCCC',
-    '...0CC0....0CC0.',
+  var HOOD_UP_0 = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCCCCCCCK...',
+    '...KCcCCCCcCK...',
+    '...KCCcCCcCCK...',
+    '....KCCCCCCCK...',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCCK..',
+    '..KCCcCCCCcCCK..',
+    '..KCCcCCCCcCCK..',
+    '...KCCCCCCCCK...',
+    '...KcCCCCCCcK...',
+    '...KKKKKKKKKK...',
+    '....KcC..CcK....',
+    '....KcC..CcK....',
+    '....KKK..KKK....',
+    '...KKKK..KKKK...',
     '................'
-  ]);
+  ];
 
-  
-  S.girlS_waveA = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '...022CCCC220C..',
-    '...02CCCCCC2CC..',
-    '...02C0CC0C20C..',
-    '...02CCCCCC20E..',
-    '...022CCCC220E..',
-    '....02222220.E..',
-    '...022222222E...',
-    '..0222EEEE2220..',
-    '..022EEEEEE220..',
-    '..02EEEEEEEE20..',
-    '..0EEEEEEEEEE0..',
-    '..0ECEEEEEECE0..',
-    '..0EEEEEEEEEE0..',
-    '.0EEEEEEEEEEEE0.',
-    '.0EECEEEEEECEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0ECEEEEEEEECE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '..0CCEEEEEECC0..',
-    '.0CCCCCCCCCCCC0.',
-    '...0CC0..0CC0...',
+  var HOOD_UP_1 = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCCCCCCCK...',
+    '...KCcCCCCcCK...',
+    '...KCCcCCcCCK...',
+    '....KCCCCCCCK...',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCCK..',
+    '..KCCcCCCCcCCK..',
+    '..KCCcCCCCcCCK..',
+    '...KCCCCCCCCK...',
+    '...KcCCCCCCcK...',
+    '...KKKKKKKKKK...',
+    '....KcC..CcK....',
+    '....KKK..CcK....',
+    '..........KKK...',
+    '.........KKKK...',
     '................'
-  ]);
+  ];
 
-  
-  S.girlS_waveB = spr(16, 26, [
-    '.....022220.....',
-    '....02222220.C..',
-    '...0222222220CC.',
-    '...022CCCC220C..',
-    '...02CCCCCC20E..',
-    '...02C0CC0C20E..',
-    '...02CCCCCC20E..',
-    '...022CCCC220E..',
-    '....02222220.E..',
-    '...022222222E...',
-    '..0222EEEE2220..',
-    '..022EEEEEE220..',
-    '..02EEEEEEEE20..',
-    '..0EEEEEEEEEE0..',
-    '..0ECEEEEEECE0..',
-    '..0EEEEEEEEEE0..',
-    '.0EEEEEEEEEEEE0.',
-    '.0EECEEEEEECEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0ECEEEEEEEECE0.',
-    '.0EEEEEEEEEEEE0.',
-    '.0EEEEEEEEEEEE0.',
-    '..0CCEEEEEECC0..',
-    '.0CCCCCCCCCCCC0.',
-    '...0CC0..0CC0...',
+  var HOOD_SIDE_0 = [   // mirando a la derecha
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCCSSSSK....',
+    '....KCCSKSSK....',
+    '....KCCSSSSK....',
+    '....KCCCSCK.....',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCK...',
+    '..KCCCcCCCCSK...',
+    '..KCCCcCCCCCK...',
+    '...KCCCCCCK.....',
+    '...KcCCCCcK.....',
+    '....KKKKKKK.....',
+    '......KcCK......',
+    '......KcCK......',
+    '......KKKK......',
+    '.....KKKKK......',
     '................'
-  ]);
+  ];
 
-  
-  S.girlW_idle = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '..0CCCCC222220..',
-    '..0C0CC2222220..',
-    '..0CCCC2222220..',
-    '..0CCCC2222220..',
-    '...0CCC222220...',
-    '....0CC22220....',
-    '....02222220....',
-    '...0EEEE2220....',
-    '..0EEEEEE22220..',
-    '..0EEEEEE22220..',
-    '..0ECEEEE2220...',
-    '..0EEEEEE22220..',
-    '..0EEEEEE2220...',
-    '..0EEEEEEE2220..',
-    '.0EEEEEEEE2220..',
-    '.0EEEEEEEEE220..',
-    '.0EEEEEEEEEE20..',
-    '.0EEEEEEEEEE20..',
-    '.0CCCCCCCCC220..',
-    '...0CCCCCC220...',
-    '....0CC.0CC.....',
-    '................',
+  var HOOD_SIDE_1 = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '...KCCCCCCCCK...',
+    '...KCCCSSSSK....',
+    '....KCCSKSSK....',
+    '....KCCSSSSK....',
+    '....KCCCSCK.....',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCK...',
+    '..KCCCcCCCCSK...',
+    '..KCCCcCCCCCK...',
+    '...KCCCCCCK.....',
+    '...KcCCCCcK.....',
+    '....KKKKKKK.....',
+    '.....KcCK.......',
+    '.....KcCK.......',
+    '....KKKKK.......',
+    '...KKKKK........',
     '................'
-  ]);
+  ];
 
-  
-  S.girlW_walkA = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '..0CCCCC222220..',
-    '..0C0CC2222220..',
-    '..0CCCC2222220..',
-    '..0CCCC2222220..',
-    '...0CCC222220...',
-    '....0CC22220....',
-    '....02222220....',
-    '...0EEEE2220....',
-    '..0EEEEEE22220..',
-    '..0EEEEEE22220..',
-    '..0ECEEEE2220...',
-    '..0EEEEEE22220..',
-    '..0EEEEEE2220...',
-    '..0EEEEEEE2220..',
-    '.0EEEEEEEE2220..',
-    '.0EEEEEEEEE220..',
-    '.0EEEEEEEEEE20..',
-    '.0EEEEEEEEEE20..',
-    '.0CCCCCCCCC220..',
-    '.0CCCCCC220.....',
-    '.0CC...0CC......',
-    '................',
+  /* sentado leyendo (escena del árbol) */
+  var HOOD_SIT = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '....KCCSSSCK....',
+    '....KCSKKSSK....',
+    '....KCSSSSCK....',
+    '...KCCCCCCCCK...',
+    '..KCCCWWWWWCK...',
+    '..KCCCWWWWWCK...',
+    '...KCCCCCCCCK...',
+    '...KKKKKKKKKK...',
     '................'
-  ]);
+  ];
 
-  
-  S.girlW_walkB = spr(16, 26, [
-    '.....022220.....',
-    '....02222220....',
-    '...0222222220...',
-    '..0CCCCC222220..',
-    '..0C0CC2222220..',
-    '..0CCCC2222220..',
-    '..0CCCC2222220..',
-    '...0CCC222220...',
-    '....0CC22220....',
-    '....02222220....',
-    '...0EEEE2220....',
-    '..0EEEEEE22220..',
-    '..0EEEEEE22220..',
-    '..0ECEEEE2220...',
-    '..0EEEEEE22220..',
-    '..0EEEEEE2220...',
-    '..0EEEEEEE2220..',
-    '.0EEEEEEEE2220..',
-    '.0EEEEEEEEE220..',
-    '.0EEEEEEEEEE20..',
-    '.0EEEEEEEEEE20..',
-    '.0CCCCCCCCC220..',
-    '....0CCCCCC220..',
-    '....0CC...0CC...',
-    '................',
+  /* agachado tras columna */
+  var HOOD_HIDE = [
+    '......KKKK......',
+    '.....KCCCCK.....',
+    '....KCCCCCCK....',
+    '....KCCSSSCK....',
+    '....KCSKSKCK....',
+    '....KCSSSSCK....',
+    '...KCCCCCCCCK...',
+    '..KCCCCCCCCCCK..',
+    '..KcCCCCCCCCcK..',
+    '..KKKKKKKKKKKK..',
+    '..KKK......KKK..',
     '................'
+  ];
+
+  /* ================= ELLA (vestida de blanco) 12x16 ================= */
+
+  var GIRL_DOWN = [
+    '...KKKKKK...',
+    '..KKKKKKKK..',
+    '.KKKKKKKKKK.',
+    '.KKSSSSSSKK.',
+    '.KKSKSSKSKK.',
+    '.KKSSSSSSKK.',
+    '..KSSSSSSK..',
+    '...KWWWWK...',
+    '..KWWLLWWK..',
+    '..KWWLLWWK..',
+    '.KSWWLLWWSK.',
+    '.KWWWLLWWWK.',
+    '.KWWWLLWWWK.',
+    '..KWWWWWWK..',
+    '..KWWWWWWK..',
+    '..KKK..KKK..'
+  ];
+
+  var GIRL_UP = [
+    '...KKKKKK...',
+    '..KKKKKKKK..',
+    '.KKKKKKKKKK.',
+    '.KKKVKKVKKK.',
+    '.KKKKKKKKKK.',
+    '..KKKKKKKK..',
+    '..KWWWWWWK..',
+    '...KWWWWK...',
+    '..KWWLLWWK..',
+    '..KWWLLWWK..',
+    '.KWWWWWWWK..',
+    '.KWWWLLWWWK.',
+    '.KWWWLLWWWK.',
+    '..KWWWWWWK..',
+    '..KWWWWWWK..',
+    '..KKK..KKK..'
+  ];
+
+  var GIRL_SIDE = [   // hacia la derecha
+    '...KKKKKK...',
+    '..KKKKKKKK..',
+    '.KKKKKKKKKK.',
+    '.KKSSSSSKKK.',
+    '.KKSSKSSKKK.',
+    '.KKSSSSSKKK.',
+    '..KSSSSKK...',
+    '...KWWWWK...',
+    '..KWWLLWWK..',
+    '..KWWLLWWK..',
+    '..KWWLLWWSK.',
+    '..KWWLLWWWK.',
+    '..KWWLLWWWK.',
+    '..KWWWWWWK..',
+    '..KWWWWWWK..',
+    '..KKK..KKK..'
+  ];
+
+  var GIRL_WAVE = [   // de frente, brazo en alto: "VEN"
+    '...KKKKKK...',
+    '..KKKKKKKK..',
+    '.KKKKKKKKKK.',
+    '.KKSSSSSSKK.',
+    '.KKSKSSKSKK.',
+    '.KKSSSSSSKKS',
+    '..KSSSSSSKSS',
+    '...KWWWWKKSS',
+    '..KWWLLWWKS.',
+    '..KWWLLWWK..',
+    '.KSWWLLWWSK.',
+    '.KWWWLLWWWK.',
+    '.KWWWLLWWWK.',
+    '..KWWWWWWK..',
+    '..KWWWWWWK..',
+    '..KKK..KKK..'
+  ];
+
+  /* ================= LA HERMANA (vela en mano) 14x20 ================= */
+
+  var SIS_DOWN_0 = [
+    '....KKKKKK....',
+    '...KKKKKKKK...',
+    '..KWWWWWWWWK..',
+    '..KWSSSSSSWK..',
+    '..KWSKSSKSWK..',
+    '..KWSSSSSSWK..',
+    '..KWWWWWWWWK..',
+    '...KKKKKKKK...',
+    '..KKKKKKKKKK..',
+    '.KKVKKKKKVKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKKS',
+    '.KKVKKKKKKVKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...'
+  ];
+
+  var SIS_DOWN_1 = [
+    '....KKKKKK....',
+    '...KKKKKKKK...',
+    '..KWWWWWWWWK..',
+    '..KWSSSSSSWK..',
+    '..KWSKSSKSWK..',
+    '..KWSSSSSSWK..',
+    '..KWWWWWWWWK..',
+    '...KKKKKKKK...',
+    '..KKKKKKKKKK..',
+    '.KKVKKKKKVKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKKS',
+    '.KKVKKKKKKVKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...',
+    '....KKKKKK....'
+  ];
+
+  var SIS_UP_0 = [
+    '....KKKKKK....',
+    '...KKKKKKKK...',
+    '..KWWWWWWWWK..',
+    '..KWWWWWWWWK..',
+    '..KWWgWWgWWK..',
+    '..KWWWWWWWWK..',
+    '..KWWWWWWWWK..',
+    '...KKKKKKKK...',
+    '..KKKKKKKKKK..',
+    '.KKVKKKKKVKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKVKKKKKKVKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...'
+  ];
+
+  var SIS_UP_1 = SIS_UP_0.slice(0, 16).concat([
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...',
+    '....KKKKKK....'
   ]);
 
-/* ==== LA HERMANA (18x28) ====*/
+  var SIS_SIDE_0 = [   // hacia la derecha
+    '....KKKKKK....',
+    '...KKKKKKKK...',
+    '..KWWWWWWKKK..',
+    '..KWSSSSSKKK..',
+    '..KWSKSSKKKK..',
+    '..KWSSSSKKKK..',
+    '..KWWWWWKKKK..',
+    '...KKKKKKKKK..',
+    '..KKKKKKKKKKK.',
+    '.KKVKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKKS',
+    '.KKKKKKKKKKKKK',
+    '.KKVKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...'
+  ];
 
-  
-  S.nunS_a = spr(18, 28, [
-    '......011110......',
-    '.....01111110.....',
-    '....0111111110....',
-    '....0111111110....',
-    '...011111111110...',
-    '...01CCCCCCCC10...',
-    '..01CCCCCCCCCC10..',
-    '..01CCC0CC0CCC10..',
-    '..01CCCCCCCCCC10..',
-    '..01CCCCCCCCCC10..',
-    '...01CCCCCCCC10...',
-    'B..011111111110...',
-    'BA01111111111110..',
-    'BA01211111111210..',
-    'D0111111111111110.',
-    'D011211111112110..',
-    '.0111111111111110.',
-    '..01211111111210..',
-    '.0111111111111110.',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011111111111111110',
-    '.0000000000000000.',
-    '..................'
+  var SIS_SIDE_1 = SIS_SIDE_0.slice(0, 16).concat([
+    '.KKKKKKKKKKKK.',
+    '..KKKKKKKKKK..',
+    '...KKKKKKKK...',
+    '....KKKKKK....'
   ]);
 
-  
-  S.nunS_b = spr(18, 28, [
-    '......011110......',
-    '.....01111110.....',
-    '....0111111110....',
-    '....0111111110....',
-    '...011111111110...',
-    '...01CCCCCCCC10...',
-    '..01CCCCCCCCCC10..',
-    '..01CCC0CC0CCC10..',
-    '..01CCCCCCCCCC10..',
-    '..01CCCCCCCCCC10..',
-    '...01CCCCCCCC10...',
-    '...011111111110..B',
-    '..01111111111110AB',
-    '..01211111111210AB',
-    '.0111111111111110D',
-    '.011211111112110.D',
-    '.0111111111111110.',
-    '..01211111111210..',
-    '.0111111111111110.',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011111111111111110',
-    '.0000000000000000.',
-    '..................'
-  ]);
+  /* ================= LLAMAS (3 fotogramas 5x6) ================= */
 
-  
-  S.nunS_alert = spr(18, 28, [
-    '......011110......',
-    '.....01111110.....',
-    '....0111111110....',
-    '....0111111110....',
-    '...011111111110...',
-    '...01CCCCCCCC10...',
-    '..01CCCCCCCCCC10..',
-    '..01CCC8CC8CCC10..',
-    '..01CCCCCCCCCC10..',
-    '..01CCCCCCCCCC10..',
-    'B..01CCCCCCCC10...',
-    'B..011111111110...',
-    'BA01111111111110..',
-    'BA01211111111210..',
-    'D0111111111111110.',
-    'D011211111112110..',
-    '.0111111111111110.',
-    '..01211111111210..',
-    '.0111111111111110.',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011111111111111110',
-    '.0000000000000000.',
-    '..................'
-  ]);
+  var FLAME_A = ['..Y..', '.YYY.', '.YOY.', '.OOO.', '..O..', '..R..'];
+  var FLAME_B = ['..Y..', '.YYO.', '.YOY.', '.OOO.', '..O..', '.R...'];
+  var FLAME_C = ['..Y..', '.YYY.', '.OYY.', '.OOO.', '..O..', '..R..'];
 
-  
-  S.nunW_a = spr(18, 28, [
-    '......011110......',
-    '.....01111110.....',
-    '....0111111110....',
-    '....0CCCC11110....',
-    '...0CCCCC11110....',
-    '...0C0CC111110....',
-    '...0CCCC111110....',
-    '....0CCC11110.....',
-    '.....0CC11110.....',
-    '.....01111110.....',
-    '....0111111110....',
-    'B..011111111110...',
-    'BA01111111111110..',
-    'BA01211111111210..',
-    'D0111111111111110.',
-    'D011211111112110..',
-    '.0111111111111110.',
-    '..01211111111210..',
-    '.0111111111111110.',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011111111111111110',
-    '.0000000000000000.',
-    '..................'
-  ]);
+  /* ================= VELAS Y APLIQUES ================= */
 
-  
-  S.nunW_b = spr(18, 28, [
-    '......011110......',
-    '.....01111110.....',
-    '....0111111110....',
-    '....0CCCC11110....',
-    '...0CCCCC11110....',
-    '...0C0CC111110....',
-    '...0CCCC111110....',
-    '....0CCC11110.....',
-    '.....0CC11110.....',
-    '.....01111110.....',
-    '....0111111110....',
-    '...011111111110..B',
-    '..01111111111110AB',
-    '..01211111111210AB',
-    '.0111111111111110D',
-    '.011211111112110.D',
-    '.0111111111111110.',
-    '..01211111111210..',
-    '.0111111111111110.',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011211111111112110',
-    '011111111111111110',
-    '011111111111111110',
-    '011111111111111110',
-    '.0000000000000000.',
-    '..................'
-  ]);
-
-/* ==== PROPS ====*/
-
-  
-  S.tomb1 = spr(12, 15, [
-    '.....77.....',
-    '.....77.....',
-    '.....77.....',
-    '..77777777..',
-    '..7DDDDDD7..',
-    '.....77.....',
-    '.....7D.....',
-    '.....77.....',
-    '.....77.....',
-    '..7DDDDDD7..',
-    '.7777777777.',
-    '777777777777',
-    '777777777777',
-    '............',
-    '............'
-  ]);
-
-  
-  S.tomb2 = spr(12, 14, [
-    '....0770....',
-    '....7DD7....',
-    '..7DDDDD7...',
-    '..7DDDDD7...',
-    '...7D11D7...',
-    '..7DDDDD7...',
-    '...7D11D7...',
-    '..7DDDDD7...',
-    '..7DDDDD7...',
-    '..7DDDDD7...',
-    '..7DDDDD7...',
-    '.7DDDDDDD7..',
-    '777777777777',
-    '.7777777777.'
-  ]);
-
-  
-  S.tomb3 = spr(13, 19, [
-    '.....787.....',
-    '.....787.....',
-    '....07870....',
-    '....08880....',
-    '....08880....',
-    '....08880....',
-    '....08F80....',
-    '....08880....',
-    '....08880....',
-    '....08F80....',
-    '....08880....',
-    '....08880....',
-    '...0788870...',
-    '..07888870...',
-    '..07777770...',
-    '..07777770...',
-    '..077777770..',
-    '.0777777770..',
-    '7777777777777'
-  ]);
-
-  
-  S.shelf = spr(16, 24, [
-    '7777777777777777',
-    '7777777777777777',
-    '7111111111111117',
-    '7177777777777717',
-    '7171111111111717',
-    '7171111111111717',
-    '717111CCCC111717',
-    '717111CCCC111717',
-    '7171111111111717',
-    '7177777777777717',
-    '7111111111111117',
-    '7177777777777717',
-    '7111111111111117',
-    '7177777777777717',
-    '7171111111111717',
-    '7171111111111717',
-    '717111CCCC111717',
-    '717111CCCC111717',
-    '7171111111111717',
-    '7177777777777717',
-    '7111111111111117',
-    '7177777777777717',
-    '7777777777777777',
-    '7777777777777777'
-  ]);
-
-  
-  S.skull = spr(8, 7, [
-    '.07770..',
-    '0777770.',
-    '0777770.',
-    '0700770.',
-    '0777770.',
-    '.07770..',
-    '..0CC0..'
-  ]);
-
-  
-  S.bones = spr(12, 6, [
-    '77........77',
-    '..77......77',
-    '....7CCCCC7.',
-    '.....7CCC7..',
-    '..77......77',
-    '77........77'
-  ]);
-
-  
-  S.sconce = spr(8, 14, [
-    '..050...',
-    '.05550..',
-    '.05750..',
-    '.05550..',
-    '..050...',
-    '..000...',
-    '...B....',
-    '..BAB...',
-    '..BAB...',
-    '...A....',
-    '...D....',
-    '...D....',
-    '...D....',
-    '..000...'
-  ]);
-
-  /* SILLA del canon de la sala amueblada del video: respaldo
-     alto con panel SALMÓN y marco marrón-ladrillo, asiento de
-     diamante (cara superior salmón + frontal granate) y patas
-     finas verticales. Contorno negro 1px, dos tonos, cero
-     degradados: madera de cartucho Famicom. */
-  S.chair = spr(14, 18, [
-    '....000000....',
-    '...07777770...',
-    '...07E77E70...',
-    '...07777770...',
-    '...07777770...',
-    '...07777770...',
-    '...07777770...',
-    '...0FFFFFF0...',
-    '....000000....',
-    '...07777770...',
-    '..0777777770..',
-    '..0FFFFFFF0...',
-    '...0FFFFF0....',
-    '....0FF0.0FF0.',
-    '....0FF0.0FF0.',
-    '....0FF0.0FF0.',
-    '....0FF0.0FF0.',
-    '....0000.0000.'
-  ]);
-
-  /* ---------------- OBJETOS ---------------- */
-
-  S.candle_a = spr(6, 11, [
-    '...B..',
-    '..BBB.',
-    '..BAB.',
-    '...A..',
-    '..DCD.',
-    '..DCD.',
-    '..DCD.',
-    '..DCD.',
-    '..DDD.',
-    '.DDDDD',
+  var CANDLE = [   // vela de suelo (recogible) 6x8
+    '.KWWK.',
+    '.KWWK.',
+    '.KWWK.',
+    '.KWWK.',
+    '.KgWK.',
+    '.KgWK.',
+    '..KK..',
     '......'
-  ]);
-  S.candle_b = spr(6, 11, [
-    '..BB..',
-    '.BBB..',
-    '.BAB..',
-    '...A..',
-    '..DCD.',
-    '..DCD.',
-    '..DCD.',
-    '..DCD.',
-    '..DDD.',
-    '.DDDDD',
-    '......'
-  ]);
+  ];
 
-  S.heartFull = spr(9, 8, [
-    '.FF...FF.',
-    'F8E88888F',
-    'F8888888F',
-    'F8888888F',
-    '.F88888F.',
-    '..F888F..',
-    '...F8F...',
-    '....F....'
-  ]);
-  S.heartEmpty = spr(9, 8, [
-    '.FF...FF.',
-    'F......F.',
-    'F......F.',
-    'F......F.',
-    '.F....F..',
-    '..F..F...',
-    '...F.F...',
-    '....F....'
-  ]);
+  var SCONCE = [   // aplique de muro 8x9
+    '........',
+    '.KWWWK..',
+    '.KWWWK..',
+    '.KWWWK..',
+    '.KgWWK..',
+    '..KVK...',
+    '.KVpVK..',
+    '..KVK...',
+    '..KKK...'
+  ];
 
-  // El libro abierto (dos páginas de hueso, tapa carmesí)
-  S.bookA = spr(10, 5, [
-    '..CCCCCC..',
-    '.CCCCCCCC.',
-    'CC1CCCC1CC',
-    '.8......8.',
-    '.88888888.'
-  ]);
-  S.bookB = spr(10, 5, [
-    '..CCCCCC..',
-    '.CCCCCCCC.',
-    'C1CCCCCC1C',
-    '.8......8.',
-    '.88888888.'
-  ]);
+  /* ================= LAPIDAS Y RESTOS ================= */
 
-  /* ---------------- CEMENTERIO ---------------- */
+  var TOMB_CROSS = [   // 12x14
+    '....KKKK....',
+    '....KGGK....',
+    '....KGGK....',
+    '.KKKKGGKKKK.',
+    '.KGGGGGGGGK.',
+    '.KKKKGGKKKK.',
+    '..KKKGGKKK..',
+    '....KGGK....',
+    '....KGGK....',
+    '....KGGK....',
+    '..KKGGGGKK..',
+    '.KGGGGGGGGK.',
+    '.KggGGGGggK.',
+    '.KKKKKKKKKK.'
+  ];
 
-  S.fence = spr(12, 10, [
-    '.1..1..1..1.',
-    '.2..2..2..2.',
-    '222222222222',
-    '.2..2..2..2.',
-    '.2..2..2..2.',
-    '222222222222',
-    '.2..2..2..2.',
-    '.2..2..2..2.',
-    '.2..2..2..2.',
+  var TOMB_ROUND = [   // 12x12
+    '...KKKKKK...',
+    '..KGGGGGGK..',
+    '.KGGGGGGGGK.',
+    '.KGggggggGK.',
+    '.KGggggggGK.',
+    '.KGGGGGGGGK.',
+    '.KGggggggGK.',
+    '.KGGGGGGGGK.',
+    '.KggGGGGggK.',
+    '.KKKKKKKKKK.',
+    '..KKKKKKKK..',
+    '..KKKKKKKK..'
+  ];
+
+  var TOMB_BROKEN = [   // 12x9
+    '.KKKKKKKKK..',
+    '.KGGGGGGGK..',
+    '.KGggggGGK..',
+    '.KKKGGGGKK..',
+    '...KGGK.....',
+    '..KGGGGK....',
+    '.KggGGggK...',
+    '.KKKKKKKK...',
     '............'
-  ]);
-  S.bat_a = spr(7, 3, ['6.....6', '.66666.', '..666..']);
-  S.bat_b = spr(7, 3, ['.......', '6666666', '..666..']);
-  S.rat_a = spr(8, 4, ['......11', '.111111.', '11111111', '.2..2...']);
-  S.rat_b = spr(8, 4, ['11......', '.111111.', '11111111', '...2..2.']);
+  ];
 
-  /* ---------------- CONVENTO ---------------- */
+  var SKULL = [   // 7x6
+    '.KKKKK.',
+    'KWWWWWK',
+    'KWKWKWK',
+    'KWWKWWK',
+    '.KWWWK.',
+    '.K.K.K.'
+  ];
 
-  S.window = spr(16, 20, [
-    '.....DDDDDD.....',
-    '...DDDDDDDDDD...',
-    '..DDDDDDDDDDDD..',
-    '..DD00000000DD..',
-    '.DD0000000000DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0020000200DD.',
-    '.DD0000000000DD.',
-    '.DDDDDDDDDDDDDD.',
-    '..DDDDDDDDDDDD..',
-    '.DDDDDDDDDDDDDD.',
-    '..333333333333..',
-    '................'
-  ]);
+  var BONES = [   // 10x5
+    '.KWKKW....',
+    'KWWKKWWK..',
+    '.KKWKKWK..',
+    '....KWWK..',
+    '.....KK...'
+  ];
 
-  // Columna (canon): capitel y base SALMÓN, fuste rojo vivo con
-  // sombra sangre y basamenta violeta
-  S.column = spr(12, 28, [
-    '.077777770..',
-    '.077777770..',
-    '.0DDDDDDD0..',
-    '.078888870..',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '..0788870...',
-    '.078888870..',
-    '.077777770..',
-    '.0DDDDDDD0..',
-    '.077777770..',
+  /* ================= ARBOL MUERTO 22x28 ================= */
+
+  var DEADTREE = [
+    '.....K......K.........',
+    '.....K.....KK.........',
+    '......K....KK.........',
+    '......K...K.K.........',
+    '.......K..K.K....K....',
+    '.......KK.K.K....K....',
+    '........KKK.K...KK....',
+    '.........KKKK...K.K...',
+    '....K.....KKK..K..K...',
+    '....KK....KKKKKK..K...',
+    '.....KK...KKKKKK.KK...',
+    '......KKKKKKKKKKKK....',
+    '.........KKKKKK.......',
+    '........KKVKKK........',
+    '........KKVKKK........',
+    '........KKVKKKK.......',
+    '........KKVKKKK.......',
+    '........KKVKKKK.......',
+    '.......KKKVKKKK.......',
+    '.......KKKVVKKK.......',
+    '......KKKKVVKKKK......',
+    '......KKKKVKKKKK......',
+    '.....KKKKKVKKKKKK.....',
+    '.....KKKKKVKKKKKK.....',
+    '....KKKKKKVVKKKKKK....',
+    '....KKKKKKVKKKKKKK....',
+    '...KKKKKKKKKKKKKKKK...',
+    '...KKKKKKKKKKKKKKKK...'
+  ];
+
+  /* ================= VENTANA GOTICA (2 estados) 12x14 ================= */
+
+  var WINDOW_LIT_0 = [
+    '.....KK.....',
+    '....KGGK....',
+    '...KGGGGK...',
+    '..KGKYYKGK..',
+    '.KGKYYYYKGK.',
+    '.KGKYOOYKGK.',
+    '.KGKYOOYKGK.',
+    '.KGKYYYYKGK.',
+    '.KGKKYYKKGK.',
+    '.KGKKKKKKGK.',
+    '.KGGKKKKGGK.',
+    '.KGGGGGGGGK.',
+    '..KKKKKKKK..',
+    '..KKKKKKKK..'
+  ];
+
+  var WINDOW_LIT_1 = [
+    '.....KK.....',
+    '....KGGK....',
+    '...KGGGGK...',
+    '..KGKYYKGK..',
+    '.KGKYYOYKGK.',
+    '.KGKOYYOKGK.',
+    '.KGKYOOYKGK.',
+    '.KGKYYYYKGK.',
+    '.KGKKYYKKGK.',
+    '.KGKKKKKKGK.',
+    '.KGGKKKKGGK.',
+    '.KGGGGGGGGK.',
+    '..KKKKKKKK..',
+    '..KKKKKKKK..'
+  ];
+
+  /* ================= MOBILIARIO ================= */
+
+  var COLUMN = [   // 12x26
+    '.MMMMMMMMMM.',
+    '.KKKKKKKKKK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KvVKVVKVVK.',
+    '.KVVVVVVVVK.',
+    '.KKKKKKKKKK.',
+    '.MMMMMMMMMM.',
+    '.KKKKKKKKKK.',
     '............'
-  ]);
+  ];
 
-  /* ---------------- conjuntos por dirección ---------------- */
-  S.boyS = { stand: S.boyS_stand, walkA: S.boyS_walkA, walkB: S.boyS_walkB };
-  S.boyN = { stand: S.boyN_stand, walkA: S.boyN_walkA, walkB: S.boyN_walkB };
-  S.boyW = { stand: S.boyW_stand, walkA: S.boyW_walkA, walkB: S.boyW_walkB };
-  S.girlS = { idle: S.girlS_idle, waveA: S.girlS_waveA, waveB: S.girlS_waveB, walkA: S.girlS_walkA, walkB: S.girlS_walkB };
-  S.girlW = { idle: S.girlW_idle, walkA: S.girlW_walkA, walkB: S.girlW_walkB };
-  S.nunS = { a: S.nunS_a, b: S.nunS_b, alert: S.nunS_alert };
-  S.nunW = { a: S.nunW_a, b: S.nunW_b };
+  var SHELF = [   // 16x18
+    '.KKKKKKKKKKKKKK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KWKGWKGKWKGWKK.',
+    '.KWKGWKGKWKGWKK.',
+    '.KKKKKKKKKKKKKK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KGKWKGSKGKWKGK.',
+    '.KGKWKGSKGKWKGK.',
+    '.KKKKKKKKKKKKKK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KWKGKGGKWKGKKK.',
+    '.KWKGKGGKWKGKKK.',
+    '.KKKKKKKKKKKKKK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KPPPPPPPPPPPPK.',
+    '.KKKKKKKKKKKKKK.',
+    '.KK..........KK.',
+    '.KK..........KK.'
+  ];
+
+  var CHAIR = [   // 10x13
+    '.KKKKKKK..',
+    '.KVVVVVK..',
+    '.KVKVKVK..',
+    '.KVVVVVK..',
+    '.KKKKKKK..',
+    '.KVVVVVKK.',
+    '.KKKKKKKKK',
+    '..KVK.KVK.',
+    '..KVK.KVK.',
+    '..KVK.KVK.',
+    '..KKK.KKK.',
+    '..........',
+    '..........'
+  ];
+
+  var STAIRS = [   // 18x10 (subida a la ventana)
+    '..............KKKK',
+    '..............KGGK',
+    '...........KKKKGGK',
+    '...........KGGGGGK',
+    '........KKKKGGGGGK',
+    '........KGGGGGGGGK',
+    '.....KKKKGGGGGGGGK',
+    '.....KGGGGGGGGGGGK',
+    '..KKKKGGGGGGGGGGGK',
+    '..KKKKKKKKKKKKKKKK'
+  ];
+
+  /* ================= BICHOS ================= */
+
+  var RAT_0 = [
+    '..KKK...',
+    '.KKKKK..',
+    'KKgKgKK.',
+    '.KKKKKKK',
+    '..K..K..'
+  ];
+  var RAT_1 = [
+    '..KKK...',
+    '.KKKKK..',
+    'KKgKgKK.',
+    '.KKKKKKK',
+    '..K..K..'
+  ];
+  var BAT_0 = [
+    'KK......KK',
+    'KKK....KKK',
+    '.KKKVVKKK.',
+    '..KKVVKK..',
+    '...KVVK...',
+    '....VV....',
+    '....KK....'
+  ];
+  var BAT_1 = [
+    '..........',
+    '...KVVK...',
+    '..KKVVKK..',
+    '.KKVVVVKK.',
+    'KKKVVVVKKK',
+    'KK..VV..KK',
+    '....KK....'
+  ];
+
+  /* ================= HUD ================= */
+
+  var HEART = [
+    '.KK.KK.',
+    'KCCKCCK',
+    'KCMKCCK',
+    '.KCCCK.',
+    '..KCK..',
+    '...K...'
+  ];
+  var HEART_EMPTY = [
+    '.KK.KK.',
+    'KPPKPPK',
+    'KPPKPPK',
+    '.KPPPK.',
+    '..KPK..',
+    '...K...'
+  ];
+  var EXCLAM = [
+    'MMM',
+    'MMM',
+    'MMM',
+    'MMM',
+    'MMM',
+    '...',
+    'MMM',
+    'MMM'
+  ];
 
   /* ============================================================
-     DIBUJO DE SPRITES
+     HORNO DE SPRITES
      ============================================================ */
 
-  var Spr = {
-    S: S,
+  var DEFS = {
+    HOOD_DOWN_0: HOOD_DOWN_0, HOOD_DOWN_1: HOOD_DOWN_1,
+    HOOD_UP_0: HOOD_UP_0, HOOD_UP_1: HOOD_UP_1,
+    HOOD_SIDE_0: HOOD_SIDE_0, HOOD_SIDE_1: HOOD_SIDE_1,
+    HOOD_SIT: HOOD_SIT, HOOD_HIDE: HOOD_HIDE,
+    GIRL_DOWN: GIRL_DOWN, GIRL_UP: GIRL_UP,
+    GIRL_SIDE: GIRL_SIDE, GIRL_WAVE: GIRL_WAVE,
+    SIS_DOWN_0: SIS_DOWN_0, SIS_DOWN_1: SIS_DOWN_1,
+    SIS_UP_0: SIS_UP_0, SIS_UP_1: SIS_UP_1,
+    SIS_SIDE_0: SIS_SIDE_0, SIS_SIDE_1: SIS_SIDE_1,
+    FLAME_A: FLAME_A, FLAME_B: FLAME_B, FLAME_C: FLAME_C,
+    CANDLE: CANDLE, SCONCE: SCONCE,
+    TOMB_CROSS: TOMB_CROSS, TOMB_ROUND: TOMB_ROUND, TOMB_BROKEN: TOMB_BROKEN,
+    SKULL: SKULL, BONES: BONES,
+    DEADTREE: DEADTREE,
+    WINDOW_LIT_0: WINDOW_LIT_0, WINDOW_LIT_1: WINDOW_LIT_1,
+    COLUMN: COLUMN, SHELF: SHELF, CHAIR: CHAIR, STAIRS: STAIRS,
+    RAT_0: RAT_0, RAT_1: RAT_1, BAT_0: BAT_0, BAT_1: BAT_1,
+    HEART: HEART, HEART_EMPTY: HEART_EMPTY, EXCLAM: EXCLAM
+  };
 
-    /* Dibujo de sprites: PÍXEL a PÍXEL, colores planos de la
-       paleta. Cero globalAlpha: cuando un ente se desvanece
-       (la niña) se disuelve como en la NES — tramas de puntos
-       cada vez más ralas + parpadeo de fotograma, nunca
-       transparencia moderna. */
-    draw: function (ctx, sp, x, y, opts) {
-      opts = opts || {};
-      var px = Math.round(x), py = Math.round(y);
-      var flip = !!opts.flip;
-      var a = opts.alpha === undefined ? 1 : opts.alpha;
-      // régimen de disolución 8 bits (solo si alpha < 1)
-      var dith = 0;                       // 0 = sólido
-      if (a < 0.3) dith = 3;              // trama 25% + parpadeo
-      else if (a < 0.66) dith = 2;        // trama 50%
-      else if (a < 1) dith = 1;           // trama 75% (rincones)
-      if (dith === 3) {
-        // parpadeo de fotograma: visible solo 1 de cada 2 ticks
-        if ((Math.floor(performance.now() / 60) & 1) === 0) return;
+  var Spr = {
+    frames: null,   // frames[nombre][fade] y frames[nombre+'#F'][fade]
+
+    init: function () {
+      this.frames = {};
+      for (var name in DEFS) {
+        var rows = DEFS[name];
+        var w = rows[0].length, h = rows.length;
+        for (var r = 0; r < rows.length; r++) {
+          if (rows[r].length !== w) {
+            throw new Error('SPRITE ' + name + ' fila ' + r + ' tiene ' +
+              rows[r].length + ' px, se esperaban ' + w + ' >> ' + rows[r]);
+          }
+        }
+        this.frames[name] = [];
+        this.frames[name + '#F'] = [];   // volteado
+        for (var f = 0; f < M.FADESWAP.length; f++) {
+          this.frames[name][f] = this._bake(rows, w, h, f, false);
+          this.frames[name + '#F'][f] = this._bake(rows, w, h, f, true);
+        }
       }
-      var rows = sp.rows, r, c, ch, col, sx, drawPx;
-      for (r = 0; r < rows.length; r++) {
-        var line = rows[r];
-        for (c = 0; c < line.length; c++) {
-          ch = line.charAt(c);
-          if (ch === '.') continue;
-          if (opts.remap && opts.remap[ch]) ch = opts.remap[ch];
-          col = parseInt(ch, 16);
-          if (isNaN(col)) continue;
-          sx = flip ? (sp.w - 1 - c) : c;
-          drawPx = true;
-          if (dith === 2) drawPx = ((sx + r) & 1) === 0;          // tablero 50%
-          else if (dith === 3) drawPx = ((sx & 1) === 0) && ((r & 1) === 0); // 25%
-          else if (dith === 1) drawPx = !((sx & 1) === 1 && (r & 1) === 1);  // 75%
-          if (!drawPx) continue;
-          ctx.fillStyle = M.PAL[col];
-          ctx.fillRect(px + sx, py + r, 1, 1);
+      // hornear los arcos góticos procedurales (ogiva equilátera)
+      this.bakeArchSprite('GOARCH', { halfOpen: 16, ring: 7 });
+      this.bakeArchSprite('GOARCHW', { halfOpen: 8, ring: 5 });
+      this.bakeIronGate();
+      this.bakeDoorG();
+    },
+
+    /* ============================================================
+       ARCO GÓTICO PROCEDURAL — ogiva equilátera: dos arcos de
+       circunferencia de radio 2*halfOpen que se cruzan en el
+       ápice. Las DOVELAS cabalgan SOBRE la curva (dentro del
+       vano), clave MAGENTA en el ápice, salmeros y machones
+       flanqueando el arranque.
+       ============================================================ */
+    bakeArchSprite: function (name, opts) {
+      var halfOpen = opts.halfOpen, ring = opts.ring;
+      var R = 2 * halfOpen;                    // equilátera
+      var rise = Math.round(Math.sqrt(R * R - (R - halfOpen) * (R - halfOpen)));
+      var W = (halfOpen + 3) * 2;              // vano + flamencos
+      var H = rise + 12;                       // arco + machones
+      var springY = H - 6;
+
+      // curva del arco a distancia d del eje: la mitad izquierda
+      // sigue el círculo derecho (centrado a R-halfOpen del eje)
+      function archY(d) {
+        if (d >= halfOpen) return springY;
+        var dx = (R - halfOpen) + d;
+        return Math.round(springY - Math.sqrt(Math.max(0, R * R - dx * dx)));
+      }
+
+      this.frames[name] = [];
+      for (var f = 0; f < M.FADESWAP.length; f++) {
+        var sw = M.FADESWAP[f];
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        var cx = W / 2;
+        var px, y, d, yc;
+
+        for (px = 0; px < W; px++) {
+          d = Math.abs(px + 0.5 - cx);
+          if (d > halfOpen + 2.5) continue;     // fuera del arco
+          yc = archY(Math.min(d, halfOpen));
+          for (y = 0; y < H; y++) {
+            var ci = -1;
+            if (d >= halfOpen - 1.5) {
+              // flamencos: salmeros junto al vano y machones
+              if (y >= yc - 2 && y < springY) {
+                ci = (y === yc - 2) ? 0 : 2;
+              } else if (y >= springY) {
+                ci = (y === springY || (y - springY) % 8 === 0) ? 0 : 2;
+              }
+            } else {
+              if (y >= yc && y < springY) continue;   // vano: transparente
+              if (y >= yc - ring && y < yc) {
+                // dovela sobre la curva
+                if (y === yc - 1) ci = 0;                       // intradós
+                else if (d < 3.5) ci = 5;                       // CLAVE magenta
+                else if (d < 5) ci = 0;                         // junta de clave
+                else if (Math.floor(d / 5) !== Math.floor((d - 1) / 5)) ci = 0; // junta radial
+                else if (y === yc - ring + 1) ci = 12;          // canto gris
+                else ci = 2;                                   // sillar violeta
+              }
+            }
+            if (ci < 0) continue;
+            ctx.fillStyle = M.PAL_MASTER[sw[ci]];
+            ctx.fillRect(px, y, 1, 1);
+          }
+        }
+        this.frames[name].push(cv);
+      }
+    },
+
+    /* PUERTA CARMESÍ: doble hoja que llena la ogiva exacta */
+    bakeDoorG: function () {
+      var halfOpen = 15, R = 2 * 16;
+      var rise = Math.round(Math.sqrt(R * R - (R - 16) * (R - 16)));
+      var W = 30, H = rise;
+
+      function archY(d) {
+        if (d >= 16) return H;
+        var dx = (R - 16) + d;
+        return Math.round(H - Math.sqrt(Math.max(0, R * R - dx * dx)));
+      }
+
+      this.frames.DOORG = [];
+      for (var f = 0; f < M.FADESWAP.length; f++) {
+        var sw = M.FADESWAP[f];
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        var cx = W / 2;
+        var px, y;
+        for (px = 0; px < W; px++) {
+          var d = Math.abs(px + 0.5 - cx);
+          var yc = archY(d);
+          for (y = yc; y < H; y++) {
+            var ci;
+            if (Math.abs(px + 0.5 - cx) < 1) ci = 0;            // juntura central
+            else if (y === yc) ci = 0;                          // borde superior
+            else if (y % 9 === 0) ci = 7;                       // tabelas horizontales
+            else if (Math.abs(px + 0.5 - cx) > 12) ci = 7;      // canto sombreado
+            else ci = 6;                                        // hoja carmesí
+            // herrajes
+            if ((Math.abs(Math.abs(px + 0.5 - cx) - 5) < 1) && (y === Math.round(H * 0.62) || y === Math.round(H * 0.62) + 1)) ci = 5;
+            ctx.fillStyle = M.PAL_MASTER[sw[ci]];
+            ctx.fillRect(px, y, 1, 1);
+          }
+        }
+        this.frames.DOORG.push(cv);
+      }
+    },
+
+    /* PORTÓN DE HIERRO: reja que llena el vano de la ogiva */
+    bakeIronGate: function () {
+      var halfOpen = 15, R = 2 * 16;
+      var rise = Math.round(Math.sqrt(R * R - (R - 16) * (R - 16)));
+      var W = 30, H = rise + 6;
+      var springY = H - 3;
+
+      function archY(d) {
+        if (d >= 16) return springY;
+        var dx = (R - 16) + d;
+        return Math.round(springY - Math.sqrt(Math.max(0, R * R - dx * dx)));
+      }
+
+      this.frames.IRONGATE = [];
+      for (var f = 0; f < M.FADESWAP.length; f++) {
+        var sw = M.FADESWAP[f];
+        var cv = document.createElement('canvas');
+        cv.width = W; cv.height = H;
+        var ctx = cv.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+        var cx = W / 2;
+        var px, y;
+        // fondo negro del vano
+        ctx.fillStyle = M.PAL_MASTER[sw[0]];
+        ctx.fillRect(0, 0, W, H);
+        for (px = 0; px < W; px++) {
+          var d = Math.abs(px + 0.5 - cx);
+          var yc = archY(d);
+          // verjas verticales cada 5 px
+          if (px % 5 === 2) {
+            for (y = yc + 1; y < H; y++) {
+              var ci = (y < yc + 4) ? 5 : 1;   // punta magenta, barra violeta
+              ctx.fillStyle = M.PAL_MASTER[sw[ci]];
+              ctx.fillRect(px, y, 2, 1);
+            }
+          }
+        }
+        // travesaños negros
+        ctx.fillStyle = M.PAL_MASTER[sw[0]];
+        ctx.fillRect(2, Math.round(H * 0.42), W - 4, 2);
+        ctx.fillRect(2, Math.round(H * 0.78), W - 4, 2);
+        this.frames.IRONGATE.push(cv);
+      }
+    },
+
+    _bake: function (rows, w, h, fade, flip) {
+      var cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      var ctx = cv.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      var sw = M.FADESWAP[fade];
+      for (var y = 0; y < h; y++) {
+        for (var x = 0; x < w; x++) {
+          var ci = CH[rows[y].charAt(flip ? (w - 1 - x) : x)];
+          if (ci < 0) continue;
+          ctx.fillStyle = M.PAL_MASTER[sw[ci]];
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      return cv;
+    },
+
+    get: function (name, fade, flip) {
+      var key = flip ? (name + '#F') : name;
+      var fr = this.frames[key];
+      if (!fr) throw new Error('sprite inexistente: ' + name);
+      return fr[Math.max(0, Math.min(fr.length - 1, fade | 0))];
+    },
+
+    draw: function (ctx, name, x, y, opts) {
+      opts = opts || {};
+      ctx.drawImage(this.get(name, opts.fade || 0, !!opts.flip),
+        Math.round(x), Math.round(y));
+    },
+
+    w: function (name) { return this.frames[name][0].width; },
+    h: function (name) { return this.frames[name][0].height; },
+
+    /* ---- llama animada (elige fotograma por tiempo) ---- */
+    drawFlame: function (ctx, x, y, t, fade) {
+      var i = Math.floor(t * 9) % 3;
+      this.draw(ctx, 'FLAME_' + 'ABC'.charAt(i), x, y, { fade: fade });
+    },
+
+    /* ============================================================
+       DIBUJOS PROCEDURALES DE UN SOLO PLANO (fillRect, sin AA):
+       círculos por líneas de barrido — la técnica 1987.
+       ============================================================ */
+
+    // círculo plano: relleno + contorno de 1 px (paleta opcional)
+    _disc: function (ctx, cx, cy, r, fillIdx, outlineIdx, pal) {
+      pal = pal || function (ci) { return M.PAL[ci]; };
+      for (var dy = -r; dy <= r; dy++) {
+        var w = Math.floor(Math.sqrt(r * r - dy * dy));
+        if (w < 0) continue;
+        ctx.fillStyle = pal(fillIdx);
+        ctx.fillRect(Math.round(cx - w), Math.round(cy + dy), w * 2 + 1, 1);
+      }
+      if (outlineIdx === undefined) return;
+      ctx.fillStyle = pal(outlineIdx);
+      for (dy = -r; dy <= r; dy++) {
+        var w2 = Math.floor(Math.sqrt(r * r - dy * dy));
+        if (w2 < 0) continue;
+        ctx.fillRect(Math.round(cx - w2), Math.round(cy + dy), 1, 1);
+        ctx.fillRect(Math.round(cx + w2), Math.round(cy + dy), 1, 1);
+      }
+      ctx.fillRect(Math.round(cx - r), Math.round(cy), r * 2 + 1, 1);
+      ctx.fillRect(Math.round(cx - r), Math.round(cy), 1, 1);
+    },
+
+    // la luna: disco gris con cráteres y contorno negro
+    // (coordenadas SIEMPRE enteras: cero antialiasing; pal opcional
+    //  para hornearla en un fondo con banco de fundido concreto)
+    drawMoon: function (ctx, cx, cy, r, pal) {
+      pal = pal || function (ci) { return M.PAL[ci]; };
+      cx = Math.round(cx); cy = Math.round(cy); r = Math.round(r);
+      this._disc(ctx, cx, cy, r, M.C.GRAY, M.C.BLACK, pal);
+      ctx.fillStyle = pal(M.C.DGRAY);
+      ctx.fillRect(cx - (r >> 1), cy - Math.round(r / 3), 3, 2);
+      ctx.fillRect(cx + 2, cy + 1, 4, 3);
+      ctx.fillRect(cx - 3, cy + (r >> 1), 3, 2);
+      ctx.fillRect(cx + (r >> 1), cy - (r >> 1) + 1, 2, 2);
+    },
+
+    // estrella de 1 px (parpadea por fase)
+    drawStar: function (ctx, x, y, big, on) {
+      if (!on) return;
+      ctx.fillStyle = M.PAL[big ? M.C.WHITE : M.C.GRAY];
+      ctx.fillRect(x, y, 1, 1);
+      if (big) {
+        ctx.fillRect(x - 1, y, 1, 1); ctx.fillRect(x + 1, y, 1, 1);
+        ctx.fillRect(x, y - 1, 1, 1); ctx.fillRect(x, y + 1, 1, 1);
+      }
+    },
+
+    /* el GRAN ARBOL (huerta y portada): corona de DISCOS
+       superpuestos con contorno negro y tronco VIOLETA macizo
+       (visible sobre el cielo negro) con raices y frutos magenta */
+    drawBigTree: function (ctx, x, y, t) {
+      var C = M.C;
+      var K = M.PAL[C.BLACK], V = M.PAL[C.DVIOLET], P = M.PAL[C.DPURPLE];
+      // tronco: masa violeta con contorno negro, veta purpura
+      ctx.fillStyle = V;
+      ctx.fillRect(x + 17, y + 34, 14, 78);          // fuste
+      ctx.fillRect(x + 13, y + 104, 22, 8);          // ensanche
+      ctx.fillRect(x + 8, y + 110, 8, 7);            // raiz izq
+      ctx.fillRect(x + 32, y + 110, 8, 7);           // raiz der
+      ctx.fillStyle = P;
+      ctx.fillRect(x + 22, y + 38, 3, 66);           // veta oscura
+      ctx.fillRect(x + 27, y + 84, 2, 20);
+      // contorno negro del tronco y raices
+      ctx.fillStyle = K;
+      ctx.fillRect(x + 16, y + 34, 1, 78); ctx.fillRect(x + 31, y + 34, 1, 78);
+      ctx.fillRect(x + 16, y + 104, 17, 1); ctx.fillRect(x + 12, y + 104, 1, 8);
+      ctx.fillRect(x + 34, y + 104, 1, 8);
+      ctx.fillRect(x + 7, y + 110, 1, 7); ctx.fillRect(x + 8, y + 117, 8, 1);
+      ctx.fillRect(x + 31, y + 110, 1, 7); ctx.fillRect(x + 32, y + 117, 8, 1);
+      // ramas violetas gruesas hacia la corona
+      ctx.fillStyle = V;
+      ctx.fillRect(x + 15, y + 30, 14, 10);
+      ctx.fillRect(x + 5, y + 22, 14, 10);
+      ctx.fillRect(x + 27, y + 20, 14, 10);
+      ctx.fillStyle = K;
+      ctx.fillRect(x + 14, y + 30, 1, 10); ctx.fillRect(x + 29, y + 30, 1, 10);
+      ctx.fillRect(x + 4, y + 22, 1, 10); ctx.fillRect(x + 19, y + 22, 1, 10);
+      ctx.fillRect(x + 26, y + 20, 1, 10); ctx.fillRect(x + 41, y + 20, 1, 10);
+      // corona: halo negro EXPANDIDO bajo las masas de color:
+      // el contorno abraza la union (festones) sin lineas internas
+      this._disc(ctx, x + 14, y + 16, 13, C.BLACK);
+      this._disc(ctx, x + 36, y + 18, 12, C.BLACK);
+      this._disc(ctx, x + 24, y + 9, 12, C.BLACK);
+      this._disc(ctx, x + 9, y + 27, 10, C.BLACK);
+      this._disc(ctx, x + 39, y + 29, 10, C.BLACK);
+      this._disc(ctx, x + 24, y + 23, 14, C.BLACK);
+      this._disc(ctx, x + 14, y + 16, 12, C.DPURPLE);
+      this._disc(ctx, x + 36, y + 18, 11, C.DPURPLE);
+      this._disc(ctx, x + 24, y + 9, 11, C.DVIOLET);
+      this._disc(ctx, x + 9, y + 27, 9, C.DVIOLET);
+      this._disc(ctx, x + 39, y + 29, 9, C.DVIOLET);
+      this._disc(ctx, x + 24, y + 23, 13, C.DPURPLE);
+      // frutos magenta: aparecen y desaparecen (parpadeo 1987)
+      var fruits = [[8, 8], [24, 4], [40, 12], [4, 24], [34, 22], [14, 28], [42, 30], [22, 34]];
+      for (var i = 0; i < fruits.length; i++) {
+        if (Math.sin(t * (1.1 + i * 0.35) + i * 2) > -0.2) {
+          ctx.fillStyle = M.PAL[C.MAGENTA];
+          ctx.fillRect(x + fruits[i][0], y + fruits[i][1], 2, 2);
         }
       }
     },
 
-    /* Sombra bajo los pies estilo 1987: NADA de elipse difusa con
-       alpha — un charco de píxeles negros en TABLERO DE AJEDREZ
-       (la falsa transparencia del hardware real). Cacheada por
-       anchura: solo drawImage por fotograma. */
-    _shadowCache: {},
-    shadow: function (ctx, x, y, w) {
-      var key = w | 0;
-      var cv = this._shadowCache[key];
-      if (!cv) {
-        cv = document.createElement('canvas');
-        cv.width = w * 2 + 2; cv.height = w + 2;
-        var g = cv.getContext('2d');
-        g.fillStyle = M.PAL[M.C.BLACK];
-        var a = w, b = Math.max(2, w / 2);
-        var cx = cv.width / 2 - 0.5, cy = cv.height / 2 - 0.5;
-        for (var yy = 0; yy < cv.height; yy++) {
-          for (var xx = 0; xx < cv.width; xx++) {
-            var dx = (xx - cx) / a, dy = (yy - cy) / b;
-            if (dx * dx + dy * dy <= 1 && ((xx + yy) & 1) === 0) {
-              g.fillRect(xx, yy, 1, 1);
-            }
-          }
-        }
-        this._shadowCache[key] = cv;
+    /* silueta del convento para la portada: torre con tejado
+       apuntado, CRUZ blanca, campanario, puerta ojival y la
+       ventana encendida */
+    drawConventSil: function (ctx, x, y) {
+      var C = M.C;
+      ctx.fillStyle = M.PAL[C.DPURPLE];
+      ctx.fillRect(x, y + 40, 96, 48);        // cuerpo
+      ctx.fillRect(x + 28, y + 12, 36, 30);   // torre
+      // tejado triangular por líneas
+      for (var i = 0; i < 14; i++) {
+        var hw = Math.round((i / 13) * 16);
+        ctx.fillRect(x + 46 - hw, y + 12 - 14 + i, hw * 2 + 1, 1);
       }
-      ctx.drawImage(cv, Math.round(x - cv.width / 2), Math.round(y - cv.height / 2));
-    }
-  };
+      // cruz blanca GRANDE sobre la torre
+      ctx.fillStyle = M.PAL[C.WHITE];
+      ctx.fillRect(x + 45, y - 12, 2, 16);
+      ctx.fillRect(x + 40, y - 7, 12, 2);
+      // campanario: vano negro apuntado
+      ctx.fillStyle = M.PAL[C.BLACK];
+      ctx.fillRect(x + 42, y + 20, 8, 10);
+      ctx.fillRect(x + 44, y + 17, 4, 3);
+      // puerta del convento: vano apuntado
+      ctx.fillRect(x + 42, y + 76, 12, 12);
+      ctx.fillRect(x + 45, y + 72, 6, 5);
+      // ventanucos apagados
+      ctx.fillRect(x + 10, y + 52, 6, 8);
+      ctx.fillRect(x + 24, y + 52, 6, 8);
+      ctx.fillRect(x + 66, y + 52, 6, 8);
+      ctx.fillRect(x + 80, y + 46, 6, 8);
+      ctx.fillRect(x + 80, y + 62, 6, 8);
+      // ventana encendida (la llama late)
+      ctx.fillStyle = M.PAL[C.ORANGE];
+      ctx.fillRect(x + 31, y + 26, 6, 8);
+      ctx.fillStyle = M.PAL[C.YELLOW];
+      ctx.fillRect(x + 33, y + 28, 2, 4);
+    },
 
-  /* ============================================================
-     GENERACIÓN PROCEDURAL EN CANVAS: ÁRBOL, ÁRBOL MUERTO, LUNA,
-     ARCO, ESCALERA Y PUERTA (canon de las capturas reales)
-     ============================================================ */
+    /* LA CARA: ella mira de vuelta (destello de 3 fotogramas) */
+    drawFace: function (ctx, cx, cy) {
+      var C = M.C;
+      this._disc(ctx, cx, cy, 11, C.BONE, C.BLACK);
+      // cuencas vacías
+      ctx.fillStyle = M.PAL[C.BLACK];
+      ctx.fillRect(cx - 7, cy - 4, 5, 6);
+      ctx.fillRect(cx + 2, cy - 4, 5, 6);
+      // brillo magenta dentro de las cuencas
+      ctx.fillStyle = M.PAL[C.MAGENTA];
+      ctx.fillRect(cx - 6, cy - 2, 2, 2);
+      ctx.fillRect(cx + 3, cy - 2, 2, 2);
+      // boca: sonrisa demasiado larga
+      ctx.fillStyle = M.PAL[C.BLACK];
+      ctx.fillRect(cx - 6, cy + 5, 12, 2);
+      ctx.fillRect(cx - 7, cy + 4, 2, 1);
+      ctx.fillRect(cx + 5, cy + 4, 2, 1);
+      // mechones
+      ctx.fillStyle = M.PAL[C.BLACK];
+      ctx.fillRect(cx - 8, cy - 12, 3, 8);
+      ctx.fillRect(cx + 5, cy - 12, 3, 8);
+      ctx.fillRect(cx - 2, cy - 13, 4, 6);
+    },
 
-  function seeded(seed) {
-    var s = seed | 0;
-    return function () {
-      s = (s * 1103515245 + 12345) & 0x7fffffff;
-      return s / 0x7fffffff;
-    };
-  }
-
-  /* ---- rasterizadores de píxel duro (cero antialiasing) ----
-     Discos, elipses, bandas de arco y trazos gruesos se pintan
-     píxel a píxel con test matemático: bordes de escalera como
-     los tiles de una cartucho real, jamás curvas suaves. */
-  function pxDisc(x, cx, cy, r, ci) {
-    x.fillStyle = M.PAL[ci];
-    var r2 = r * r;
-    for (var yy = Math.floor(cy - r); yy <= Math.ceil(cy + r); yy++) {
-      for (var xx = Math.floor(cx - r); xx <= Math.ceil(cx + r); xx++) {
-        var dx = xx - cx, dy = yy - cy;
-        if (dx * dx + dy * dy <= r2) x.fillRect(xx, yy, 1, 1);
+    /* carretes de la cinta (pantalla de arranque) */
+    drawTape: function (ctx, cx, cy, t) {
+      var C = M.C;
+      this._disc(ctx, cx - 20, cy, 10, C.DPURPLE, C.BLACK);
+      this._disc(ctx, cx + 20, cy, 10, C.DPURPLE, C.BLACK);
+      this._disc(ctx, cx - 20, cy, 3, C.BLACK);
+      this._disc(ctx, cx + 20, cy, 3, C.BLACK);
+      // radios giratorias
+      var a = t * 5;
+      ctx.fillStyle = M.PAL[C.MAGENTA];
+      for (var i = 0; i < 3; i++) {
+        var ang = a + i * 2.094;
+        ctx.fillRect(Math.round(cx - 20 + Math.cos(ang) * 6), Math.round(cy + Math.sin(ang) * 6), 2, 2);
+        ctx.fillRect(Math.round(cx + 20 + Math.cos(ang * 1.4) * 6), Math.round(cy + Math.sin(ang * 1.4) * 6), 2, 2);
       }
+      // cinta entre carretes
+      ctx.fillStyle = M.PAL[C.DGRAY];
+      ctx.fillRect(cx - 12, cy - 6, 24, 1);
+      ctx.fillRect(cx - 12, cy + 5, 24, 1);
     }
-  }
-
-  // mitad superior de un disco (bóvedas y arcos de medio punto)
-  function pxDiscTop(x, cx, cy, r, ci) {
-    x.fillStyle = M.PAL[ci];
-    var r2 = r * r;
-    for (var yy = Math.floor(cy - r); yy <= cy; yy++) {
-      for (var xx = Math.floor(cx - r); xx <= Math.ceil(cx + r); xx++) {
-        var dx = xx - cx, dy = yy - cy;
-        if (dy <= 0 && dx * dx + dy * dy <= r2) x.fillRect(xx, yy, 1, 1);
-      }
-    }
-  }
-
-  function pxEllipse(x, cx, cy, a, b, ci) {
-    x.fillStyle = M.PAL[ci];
-    for (var yy = Math.floor(cy - b); yy <= Math.ceil(cy + b); yy++) {
-      for (var xx = Math.floor(cx - a); xx <= Math.ceil(cx + a); xx++) {
-        var dx = (xx - cx) / a, dy = (yy - cy) / b;
-        if (dx * dx + dy * dy <= 1) x.fillRect(xx, yy, 1, 1);
-      }
-    }
-  }
-
-  // banda anular (dovelas de un arco), semicírculo superior
-  function pxArcBand(x, cx, cy, r0, r1, ci, full) {
-    x.fillStyle = M.PAL[ci];
-    for (var yy = Math.floor(cy - r1); yy <= Math.ceil(cy + r1); yy++) {
-      for (var xx = Math.floor(cx - r1); xx <= Math.ceil(cx + r1); xx++) {
-        var dx = xx - cx, dy = yy - cy;
-        var d2 = dx * dx + dy * dy;
-        if (d2 >= r0 * r0 && d2 <= r1 * r1) {
-          if (!full && dy > 0) continue;      // solo mitad superior
-          x.fillRect(xx, yy, 1, 1);
-        }
-      }
-    }
-  }
-
-  // trazo grueso por pasos cuadrados (troncos nudosos)
-  function pxThick(x, x0, y0, x1, y1, w, ci) {
-    x.fillStyle = M.PAL[ci];
-    var steps = Math.max(2, Math.floor(Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))));
-    var i, px, py;
-    for (i = 0; i <= steps; i++) {
-      px = Math.round(x0 + (x1 - x0) * i / steps);
-      py = Math.round(y0 + (y1 - y0) * i / steps);
-      x.fillRect(px - Math.floor(w / 2), py - Math.floor(w / 2), w, w);
-    }
-  }
-
-  function branch(ctx, x, y, ang, len, w, depth, rng, tips) {
-    if (depth <= 0 || len < 2) {
-      if (tips) tips.push({ x: x, y: y });
-      return;
-    }
-    var steps = Math.max(2, Math.floor(len / 2));
-    var px = x, py = y;
-    var i, nx, ny;
-    for (i = 0; i < steps; i++) {
-      nx = px + Math.cos(ang) * (len / steps);
-      ny = py + Math.sin(ang) * (len / steps);
-      ctx.fillStyle = M.PAL[depth >= 3 ? M.C.DPURP : M.C.DARK];
-      var ww = Math.max(1, Math.round(w * (1 - i / steps * 0.5)));
-      ctx.fillRect(Math.round(px - ww / 2), Math.round(py - ww / 2), ww, ww);
-      px = nx; py = ny;
-    }
-    var n = 2 + (rng() > 0.55 ? 1 : 0);
-    for (i = 0; i < n; i++) {
-      var spread = 0.45 + rng() * 0.5;
-      var dir = (i === 0 ? -1 : 1) * (n === 3 && i === 2 ? 0.3 : 1);
-      branch(ctx, px, py, ang + spread * dir * (0.8 + rng() * 0.5),
-        len * (0.62 + rng() * 0.16), Math.max(1, w - 1.2), depth - 1, rng, tips);
-    }
-  }
-
-  /* Gran árbol nudoso del inicio: tronco retorcido, follaje
-     violeta oscuro por puntas y frutos magenta que parpadean. */
-  function buildBigTree() {
-    var c = document.createElement('canvas');
-    c.width = 150; c.height = 130;
-    var x = c.getContext('2d');
-    var rng = seeded(19870);
-    var tips = [];
-
-    // copa: 4 ramas madre
-    branch(x, 75, 92, -Math.PI / 2 - 0.5, 26, 5, 5, rng, tips);
-    branch(x, 75, 92, -Math.PI / 2 + 0.55, 24, 5, 5, rng, tips);
-    branch(x, 75, 92, -Math.PI / 2 - 0.05, 22, 4, 5, rng, tips);
-    branch(x, 75, 92, -Math.PI / 2 + 0.95, 18, 3, 4, rng, tips);
-
-    // follaje violeta oscuro en las puntas (copa sombría del
-    // canon): masas circulares PÍXEL A PÍXEL, jamás arc() suave
-    var i, t, r;
-    for (i = 0; i < tips.length; i++) {
-      t = tips[i];
-      r = 4 + rng() * 4;
-      pxDisc(x, t.x, t.y, r, M.C.DARK);
-      pxDisc(x, t.x, t.y + r * 0.4, r * 0.7, M.C.VDARK);
-      x.fillStyle = M.PAL[M.C.DPURP];
-      x.fillRect(Math.round(t.x - r * 0.4), Math.round(t.y - r), Math.max(2, r | 0), 1);
-    }
-
-    // tronco: segmentos con leve curva, cuadrados apilados duros
-    var bx = 75, by = 126;
-    var segs = [
-      [ -Math.PI / 2 + 0.05, 26, 9 ],
-      [ -Math.PI / 2 - 0.07, 22, 7 ],
-      [ -Math.PI / 2 + 0.04, 18, 5 ]
-    ];
-    var nx, ny;
-    for (i = 0; i < segs.length; i++) {
-      var a = segs[i][0], l = segs[i][1], w = segs[i][2];
-      nx = bx + Math.cos(a) * l; ny = by + Math.sin(a) * l;
-      pxThick(x, bx, by, nx, ny, w, M.C.DPURP);
-      pxThick(x, bx - w * 0.3, by, nx - w * 0.3, ny, 1, M.C.PURP);
-      bx = nx; by = ny;
-    }
-    // raíces nudosas
-    for (i = 0; i < 5; i++) {
-      branch(x, 75, 126, Math.PI / 2 + (i - 2) * 0.38, 12 + rng() * 8, 4, 2, rng, null);
-    }
-    // hueco del tronco (la puerta de "algo"): elipse pixelada con
-    // borde sangre de 1 px (antes era un stroke antialiased)
-    pxEllipse(x, 75, 106, 7, 12, M.C.BLOOD);
-    pxEllipse(x, 75, 106, 6, 11, M.C.BLACK);
-    // frutos magenta en las puntas altas
-    var fruits = tips.filter(function (tp) { return tp.y < 70; }).slice(0, 6);
-    return { canvas: c, tips: fruits, ox: 75, oy: 126 };
-  }
-
-  function buildDeadTree(seed, scale) {
-    var c = document.createElement('canvas');
-    c.width = Math.round(60 * scale); c.height = Math.round(70 * scale);
-    var x = c.getContext('2d');
-    x.scale(scale, scale);
-    var rng = seeded(seed);
-    var bx = 30, by = 64;
-    branch(x, bx, by, -Math.PI / 2 - 0.4, 20, 4, 4, rng, null);
-    branch(x, bx, by, -Math.PI / 2 + 0.5, 18, 4, 4, rng, null);
-    branch(x, bx, by, -Math.PI / 2, 16, 3, 4, rng, null);
-    x.fillStyle = M.PAL[M.C.DARK];
-    x.fillRect(bx - 2, by - 22, 4, 22);
-    return c;
-  }
-
-  function buildMoon() {
-    var c = document.createElement('canvas');
-    c.width = 26; c.height = 26;
-    var x = c.getContext('2d');
-    // disco hueso pixelado + cráteres planos: luna de cartucho,
-    // sin halo (el rgba del glow estaba PROHIBIDO por el canon)
-    pxDisc(x, 13, 13, 11, M.C.BONE);
-    pxDisc(x, 9, 9, 2, M.C.BONE2);
-    pxDisc(x, 16, 15, 3, M.C.BONE2);
-    pxDisc(x, 11, 18, 2, M.C.BONE2);
-    // borde 1 px negro puro (silueta nítida)
-    pxArcBand(x, 13, 13, 10.5, 11.5, M.C.BLACK, true);
-    return c;
-  }
-
-  /* Arco de piedra del convento (canon de la cámara de arcos):
-     banda de dovelas violetas con juntas negras sobre capitel
-     salmón y fuste rojo vivo; clave salmón arriba. */
-  function buildArch() {
-    var c = document.createElement('canvas');
-    c.width = 24; c.height = 36;
-    var x = c.getContext('2d');
-
-    // fuste: pilar rojo vivo con contorno negro
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.fillRect(8, 14, 8, 20);
-    x.fillStyle = M.PAL[M.C.CRIM];
-    x.fillRect(9, 15, 6, 18);
-    x.fillStyle = M.PAL[M.C.BLOOD];
-    x.fillRect(9, 15, 2, 18);
-
-    // capitel salmón: bloque que carga el arco (canon)
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.fillRect(5, 12, 14, 4);
-    x.fillStyle = M.PAL[M.C.LMAG];
-    x.fillRect(6, 13, 12, 2);
-    x.fillStyle = M.PAL[M.C.WHITE];
-    x.fillRect(6, 13, 12, 1);
-
-    // arco: banda de dovelas púrpura PIXELADA (banda anular
-    // superior, sin stroke antialiased)
-    pxArcBand(x, 12, 15, 5.5, 9.5, M.C.PURP, false);
-    // juntas negras radiales: segmentan en dovelas
-    x.fillStyle = M.PAL[M.C.BLACK];
-    for (var a = 26; a < 180; a += 26) {
-      var rad = (90 - a) * Math.PI / 180;
-      for (var rr = 6; rr <= 10; rr++) {
-        x.fillRect(Math.round(12 + Math.cos(rad) * rr), Math.round(15 - Math.sin(rad) * rr), 1, 1);
-      }
-    }
-    // rim carmesí del canon: "dark purple with red rim-lighting"
-    // (aro de píxeles rojos, no un glow)
-    pxArcBand(x, 12, 15, 9.5, 10.5, M.C.CRIM, false);
-    // clave del arco (arriba): sillar salmón con brillo
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.fillRect(9, 3, 7, 5);
-    x.fillStyle = M.PAL[M.C.LMAG];
-    x.fillRect(10, 4, 5, 3);
-    x.fillStyle = M.PAL[M.C.WHITE];
-    x.fillRect(10, 4, 5, 1);
-
-    // basamenta escalonada (roja, canon)
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.fillRect(4, 33, 16, 3);
-    x.fillStyle = M.PAL[M.C.CRIM];
-    x.fillRect(5, 34, 14, 2);
-    x.fillStyle = M.PAL[M.C.BLOOD];
-    x.fillRect(5, 35, 14, 1);
-    return c;
-  }
-
-  /* Escalera isométrica del convento (canon): peldaños con huella
-     salmón y contrahuella negra, zancas moradas a los lados. */
-  function buildStairs() {
-    var c = document.createElement('canvas');
-    c.width = 36; c.height = 26;
-    var x = c.getContext('2d');
-    var i, w, px, py;
-    for (i = 0; i < 4; i++) {
-      w = 34 - i * 6;
-      px = 1 + i * 3;
-      py = 26 - (i + 1) * 6;
-      // contrahuella (frontal): negra
-      x.fillStyle = M.PAL[M.C.BLACK];
-      x.fillRect(px, py + 2, w, 4);
-      // huella (superior): banda salmón
-      x.fillStyle = M.PAL[M.C.LMAG];
-      x.fillRect(px, py, w, 2);
-      x.fillStyle = M.PAL[M.C.WHITE];
-      x.fillRect(px, py, w, 1);
-      // zancas moradas a los lados
-      x.fillStyle = M.PAL[M.C.PURP];
-      x.fillRect(px, py, 2, 6);
-      x.fillRect(px + w - 2, py, 2, 6);
-      // sombra del peldaño sobre el inmediatamente inferior
-      x.fillStyle = M.PAL[M.C.BLACK];
-      x.fillRect(px + 2, py + 6, w - 4, 1);
-    }
-    x.fillStyle = M.PAL[M.C.DPURP];
-    x.fillRect(0, 24, 36, 2);
-    return c;
-  }
-
-  /* Puerta del convento (canon): marco y muro circundante SALMÓN
-     con juntas claras, arco de medio punto con hueco violeta
-     oscuro y dintel escalonado. */
-  function buildDoor() {
-    var c = document.createElement('canvas');
-    c.width = 20; c.height = 30;
-    var x = c.getContext('2d');
-
-    // muro circundante salmón con juntas de sillar claras
-    x.fillStyle = M.PAL[M.C.LMAG];
-    x.fillRect(0, 4, 20, 26);
-    x.fillStyle = M.PAL[M.C.BONE];
-    x.fillRect(0, 9, 20, 1);
-    x.fillRect(0, 15, 20, 1);
-    x.fillRect(0, 21, 20, 1);
-    x.fillRect(0, 27, 20, 1);
-    // dintel escalonado
-    x.fillStyle = M.PAL[M.C.LMAG];
-    x.fillRect(2, 2, 16, 2);
-    x.fillRect(4, 0, 12, 2);
-    x.fillStyle = M.PAL[M.C.BONE];
-    x.fillRect(2, 3, 16, 1);
-    x.fillRect(4, 1, 12, 1);
-
-    // hueco del arco de medio punto: violeta casi negro,
-    // rasterizado por píxel (rectángulo + semicírculo)
-    x.fillStyle = M.PAL[M.C.VDARK];
-    var px, py;
-    for (py = 8; py < 28; py++) {
-      for (px = 5; px < 15; px++) {
-        var inside = (py >= 15) || ((px - 10) * (px - 10) + (py - 15) * (py - 15) <= 25);
-        if (inside) x.fillRect(px, py, 1, 1);
-      }
-    }
-    // contorno violeta del arco: 1 px de píxeles, no stroke
-    x.fillStyle = M.PAL[M.C.PURP];
-    for (py = 8; py < 28; py++) {
-      for (px = 4; px < 16; px++) {
-        var d2 = (px - 10) * (px - 10) + (py - 15) * (py - 15);
-        var inside2 = (py >= 15) ? (px === 4 || px === 15) : (d2 >= 25 && d2 <= 36);
-        if (inside2 && py > 9) x.fillRect(px, py, 1, 1);
-      }
-    }
-    // hoja de la puerta entreabierta
-    x.fillStyle = M.PAL[M.C.DPURP];
-    x.fillRect(8, 13, 4, 15);
-    x.fillStyle = M.PAL[M.C.PURP];
-    x.fillRect(8, 13, 1, 15);
-    // pomo hueso
-    x.fillStyle = M.PAL[M.C.BONE];
-    x.fillRect(7, 20, 1, 2);
-    return c;
-  }
-
-  /* Portón de paso entre habitaciones (canon del diorama):
-     arco de medio punto ABIERTO — hueco negro de pasaje que se
-     pierde en la nada, dovelas violetas segmentadas, clave y jambas
-     salmón con contorno negro y umbral escalonado. Es LA puerta
-     visible que conecta las habitaciones fijas. */
-  function buildGate() {
-    var c = document.createElement('canvas');
-    c.width = 26; c.height = 34;
-    var x = c.getContext('2d');
-
-    // hueco del pasaje: negro absoluto con lejanía violeta,
-    // rasterizado píxel a píxel (rectángulo + semicírculo)
-    x.fillStyle = M.PAL[M.C.BLACK];
-    var px, py;
-    for (py = 4; py < 32; py++) {
-      for (px = 6; px < 20; px++) {
-        var inside = (py >= 14) || ((px - 13) * (px - 13) + (py - 14) * (py - 14) <= 49);
-        if (inside) x.fillRect(px, py, 1, 1);
-      }
-    }
-    x.fillStyle = M.PAL[M.C.VDARK];
-    x.fillRect(9, 24, 8, 8);
-    x.fillStyle = M.PAL[M.C.DPURP];
-    x.fillRect(11, 27, 4, 5);
-
-    // dovelas del arco: banda anular púrpura PIXELADA con juntas
-    pxArcBand(x, 13, 14, 6.5, 10.5, M.C.PURP, false);
-    x.fillStyle = M.PAL[M.C.BLACK];
-    for (var a = 22; a < 180; a += 22) {
-      var rad = (90 - a) * Math.PI / 180;
-      for (var rr = 7; rr <= 11; rr++) {
-        x.fillRect(Math.round(13 + Math.cos(rad) * rr), Math.round(14 - Math.sin(rad) * rr), 1, 1);
-      }
-    }
-    // rim carmesí: acento hipervibrante del pasaje (píxel, no glow)
-    pxArcBand(x, 13, 14, 10.5, 11.5, M.C.CRIM, false);
-
-    // jambas salmón a los lados (canon: marco vivo)
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.fillRect(2, 12, 4, 22); x.fillRect(20, 12, 4, 22);
-    x.fillStyle = M.PAL[M.C.LMAG];
-    x.fillRect(3, 13, 2, 20); x.fillRect(21, 13, 2, 20);
-    x.fillStyle = M.PAL[M.C.BONE];
-    x.fillRect(3, 13, 2, 1); x.fillRect(21, 13, 2, 1);
-
-    // clave del arco: sillar salmón con brillo
-    x.fillStyle = M.PAL[M.C.BLACK]; x.fillRect(10, 1, 6, 6);
-    x.fillStyle = M.PAL[M.C.LMAG]; x.fillRect(11, 2, 4, 4);
-    x.fillStyle = M.PAL[M.C.WHITE]; x.fillRect(11, 2, 4, 1);
-
-    // umbral escalonado de piedra
-    x.fillStyle = M.PAL[M.C.BLACK]; x.fillRect(4, 31, 18, 3);
-    x.fillStyle = M.PAL[M.C.LMAG]; x.fillRect(5, 32, 16, 2);
-    x.fillStyle = M.PAL[M.C.BONE]; x.fillRect(5, 32, 16, 1);
-    return c;
-  }
-
-  Spr.buildBigTree = buildBigTree;
-  Spr.buildDeadTree = buildDeadTree;
-  Spr.buildMoon = buildMoon;
-  Spr.buildArch = buildArch;
-  Spr.buildStairs = buildStairs;
-  Spr.buildDoor = buildDoor;
-  Spr.buildGate = buildGate;
-
-  /* Arquitectura por NIVEL DE LUZ: la NES no atenuaba con alpha,
-     cambiaba el banco de paleta del tile. Aquí cada elemento de
-     arquitectura (puerta, portón, arco, escalera) se hornea una
-     vez por nivel (0..3) con la tabla de sustitución PALSWAP, y
-     el mundo pinta el que toque: junto a una vela la puerta
-     "salta" a su banco iluminado, en la sombra al bank oscuro. */
-  var BUILDERS = { arch: buildArch, stairs: buildStairs, door: buildDoor, gate: buildGate };
-  Spr._levelCanvases = {};
-  Spr.canvasFor = function (name, level) {
-    var bank = this._levelCanvases[name];
-    if (!bank) { bank = this._levelCanvases[name] = [null, null, null, null]; }
-    level = level === undefined ? 2 : level;
-    if (!bank[level]) {
-      bank[level] = M.withPalette(M.PALSWAP[level], function () {
-        return BUILDERS[name]();
-      });
-    }
-    return bank[level];
-  };
-
-  // La cara: destello de 2 fotogramas en pantallas de título/pasillos
-  Spr.drawFace = function (ctx, cx, cy) {
-    var x = Math.round(cx) - 12, y = Math.round(cy) - 16;
-    ctx.fillStyle = M.PAL[M.C.DARK];
-    ctx.fillRect(x - 2, y - 2, 28, 36);           // melena
-    ctx.fillStyle = M.PAL[M.C.BONE];
-    ctx.fillRect(x + 3, y + 3, 18, 24);           // rostro
-    ctx.fillStyle = M.PAL[M.C.BLACK];             // cuencas vacías
-    ctx.fillRect(x + 6, y + 10, 4, 5);
-    ctx.fillRect(x + 14, y + 10, 4, 5);
-    ctx.fillStyle = M.PAL[M.C.LCRIM];             // pupilas
-    ctx.fillRect(x + 7, y + 12, 1, 1);
-    ctx.fillRect(x + 15, y + 12, 1, 1);
-    ctx.fillStyle = M.PAL[M.C.BLACK];             // boca abierta
-    ctx.fillRect(x + 9, y + 19, 6, 4);
-    ctx.fillStyle = M.PAL[M.C.BLOOD];             // arañazos
-    ctx.fillRect(x + 4, y + 6, 1, 3);
-    ctx.fillRect(x + 19, y + 15, 1, 4);
-    ctx.fillRect(x + 8, y + 26, 8, 1);
-  };
-
-  Spr.bigTree = null;
-  Spr.moon = null;
-  Spr.deadTrees = null;
-  Spr.archCanvas = null;
-  Spr.stairsCanvas = null;
-  Spr.doorCanvas = null;
-  Spr.gateCanvas = null;
-
-  Spr.preload = function () {
-    if (!this.bigTree) { this.bigTree = buildBigTree(); }
-    if (!this.moon) this.moon = buildMoon();
-    if (!this.deadTrees) {
-      this.deadTrees = [buildDeadTree(666, 1), buildDeadTree(1313, 1), buildDeadTree(77, 0.8)];
-    }
-    if (!this.archCanvas) this.archCanvas = buildArch();
-    if (!this.stairsCanvas) this.stairsCanvas = buildStairs();
-    if (!this.doorCanvas) this.doorCanvas = buildDoor();
-    if (!this.gateCanvas) this.gateCanvas = buildGate();
   };
 
   M.Spr = Spr;

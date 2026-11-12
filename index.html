@@ -2,12 +2,16 @@
 <!--
   ============================================================
    M I S T I C A S   —  (C) 1987 — "El juego maldito"
-   Fase 1: EL INICIO
-   Ficción sonora original: "Místicas" de Manuel Bartual
-   y Carmen Pacheco. Fan game no oficial y sin ánimo de lucro.
+   Motor 8-bit Famicom/NES construido desde cero.
+   Ficción sonora original: "Místicas" de Manuel Bartual y
+   Carmen Pacheco. Fan game no oficial y sin ánimo de lucro.
    100% autocontenido: sin dependencias, sin build, sin CDN.
    Listo para GitHub Pages.
-  ============================================================
+
+   REGLA DEL CARTUCHO: cero degradados, cero luces suaves,
+   cero alpha en el canvas. Todo son píxeles sólidos de la
+   paleta 2C02 y "luz" por sustitución de registros de paleta.
+   ============================================================
 -->
 <html lang="es">
 <head>
@@ -19,50 +23,38 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- El televisor: main.js coloca el lienzo de 256x240 con
+       letterbox (factor entero). Solo hay negro alrededor. -->
   <div id="crt" role="img" aria-label="MÍSTICAS, juego de terror retro de 1987">
-    <canvas id="game" width="320" height="240"></canvas>
-    <div id="scan"></div>
-    <div id="grille"></div>
+    <canvas id="game" width="256" height="240"></canvas>
   </div>
 
-  <!-- Controles táctiles: viven en el negro del letterbox, nunca
+  <!-- Controles táctiles: viven en el NEGRO del letterbox, nunca
        sobre el tubo ni sobre el HUD. Arriba PAUSA y AUDIO; abajo,
-       a la izquierda el JOYSTICK FLOTANTE analógico (sustituye a la
-       cruceta) y a la derecha FUEGO. main.js los recoloca tras cada
-       redimensionado midiendo el tubo real. -->
+       a la izquierda el JOYSTICK FLOTANTE translúcido (única
+       transparencia permitida del cartucho) y a la derecha FUEGO. -->
   <div id="touch">
-    <!-- Botones de sistema: pausa y audio, siempre accesibles -->
     <div class="tbtn tsys" data-k="pause" id="t-pause" role="button" aria-label="Pausa">II</div>
     <div class="tbtn tsys" data-k="mute"  id="t-audio" role="button" aria-label="Silenciar audio">&#9834;</div>
-    <!-- Joystick táctil flotante: bola translúcida que se arrastra.
-         input.js convierte el vector del dedo a la rejilla isométrica. -->
     <div id="joy" role="button" aria-label="Joystick de movimiento">
       <div id="joy-knob"></div>
     </div>
-    <!-- Botón de acción -->
-    <div class="tbtn" data-k="fire" id="t-fire" role="button" aria-label="Acción">&#9679;</div>
-    <!-- Firma de la etiqueta de la cinta: ancla estética del borde
-         inferior, como la carátula del audio-novel -->
+    <div class="tbtn tfire" data-k="fire" id="t-fire" role="button" aria-label="Acción">&#9679;</div>
     <div id="sig">MISTICAS &middot; (C) 1987 &middot; CINTA 1 &middot; CARA A</div>
   </div>
 
-  <!-- Orden de carga: núcleo primero, escenas al final -->
+  <!-- El cartucho: orden de carga de los módulos -->
   <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
   <script src="js/font.js"></script>
   <script src="js/input.js"></script>
-  <script src="js/audio.js"></script>
+  <script src="js/screen.js"></script>
+  <script src="js/tiles.js"></script>
   <script src="js/sprites.js"></script>
-  <script src="js/iso.js"></script>
-  <script src="js/fx.js"></script>
-  <script src="js/ui.js"></script>
+  <script src="js/room.js"></script>
   <script src="js/entities.js"></script>
-  <script src="js/world.js"></script>
-  <script src="js/scenes/boot.js"></script>
-  <script src="js/scenes/title.js"></script>
-  <script src="js/scenes/tree.js"></script>
-  <script src="js/scenes/cemetery.js"></script>
-  <script src="js/scenes/conventext.js"></script>
-  <script src="js/scenes/convent.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/scenes.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

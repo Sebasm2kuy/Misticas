@@ -1,188 +1,194 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — entities.js
-   El Niño (jugador), la Niña de blanco (guía) y la Hermana
-   (enemiga con cono de visión y vela). Movimiento, animación,
-   sigilo y línea de visión por rejilla.
+   MÍSTICAS — (C) 1987 — js/entities.js
+   Los habitantes del cartucho. Todos son sprites de matriz
+   con contorno negro macizo, sin sombra difusa bajo los pies.
+   El movimiento es de rejilla libre con colisión por teselas,
+   perfectamente alineada a los muros del diorama.
    ============================================================ */
 (function (M) {
 
-  var Spr = null;
+  var SPEED = 3.4;   // teselas/seg del niño
 
-  /* ============ EL NIÑO ============ */
-  function Player(gx, gy) {
-    this.gx = gx; this.gy = gy;
-    this.r = 0.30;
-    this.speed = 2.7;      // teselas por segundo
-    this.dir = 'S';        // S, N, W, E
+  /* ================= EL NIÑO ================= */
+
+  function Player(x, y) {
+    this.gx = x; this.gy = y;
+    this.dir = 'down';
     this.pose = 'stand';   // stand | walk | sit | hide
     this.animT = 0;
-    this.moving = false;
     this.stepT = 0;
-    this.alpha = 1;
-    this.lightR = 34;
+    this.moving = false;
   }
 
-  Player.prototype.update = function (dt, map, allowMove) {
+  Player.prototype.update = function (dt, world) {
+    if (this.pose === 'sit') return;
+
+    var ax = world.axis;
     this.moving = false;
-    // en cinemática la pose la controla el guion
-    if (!allowMove) return;
-    if (this.pose === 'sit' || this.pose === 'hide') return;
-    var ax = M.Input.axis();
-    if (ax.active) {
-      M.Iso.move(map, this, ax.x * this.speed * dt, ax.y * this.speed * dt);
+
+    if (this.pose !== 'hide' && (ax.x !== 0 || ax.y !== 0)) {
+      var nx = this.gx + ax.x * SPEED * dt;
+      var ny = this.gy + ax.y * SPEED * dt;
+      if (!world.room.collidesBox(nx, this.gy, 0.3, 0.22)) this.gx = nx;
+      if (!world.room.collidesBox(this.gx, ny, 0.3, 0.22)) this.gy = ny;
       this.moving = true;
       this.pose = 'walk';
-      // orientación según la intención en PANTALLA (arriba = de
-      // espaldas N, izquierda = perfil W): el movimiento isométrico
-      // se siente exactamente como se ve
-      if (Math.abs(ax.sx) >= Math.abs(ax.sy)) this.dir = ax.sx > 0 ? 'E' : 'W';
-      else this.dir = ax.sy > 0 ? 'S' : 'N';
-      this.animT += dt * 7;
+      this.animT += dt;
       this.stepT -= dt;
-      if (this.stepT <= 0) { M.Audio.sfx.step(); this.stepT = 0.26; }
-    } else {
+      if (this.stepT <= 0) { this.stepT = 0.26; M.Audio.sfx.step(); }
+      // dirección dominante
+      if (Math.abs(ax.x) > Math.abs(ax.y)) this.dir = ax.x > 0 ? 'right' : 'left';
+      else this.dir = ax.y > 0 ? 'down' : 'up';
+    } else if (this.pose !== 'hide') {
       this.pose = 'stand';
-      this.animT = 0;
     }
+
+    // ¿está a cubierto tras una columna?
+    this.hidden = false;
+    var hides = world.hides;
+    for (var i = 0; i < hides.length; i++) {
+      if (M.dist(this.gx, this.gy, hides[i].x, hides[i].y) < 1.0) {
+        this.hidden = true;
+        break;
+      }
+    }
+    if (this.hidden && !this.moving) this.pose = 'hide';
   };
 
-  Player.prototype.sprite = function () {
-    var S = Spr.S;
-    if (this.pose === 'sit') return S.boySit;
-    if (this.pose === 'hide') return S.boyHide;
-    var set = this.dir === 'N' ? S.boyN : (this.dir === 'W' || this.dir === 'E') ? S.boyW : S.boyS;
-    if (this.pose === 'walk') return (Math.floor(this.animT) % 2 === 0) ? set.walkA : set.walkB;
-    return set.stand;
+  Player.prototype.drawable = function (fade, time) {
+    var self = this;
+    var px = this.gx * 8, py = this.gy * 8;
+    return {
+      baseY: py,
+      draw: function (ctx, f) {
+        var name;
+        if (self.pose === 'sit') name = 'HOOD_SIT';
+        else if (self.pose === 'hide') name = 'HOOD_HIDE';
+        else if (self.pose === 'walk') {
+          var fr = Math.floor(self.animT * 6) % 2;
+          name = self.dir === 'down' ? 'HOOD_DOWN_' + fr
+            : self.dir === 'up' ? 'HOOD_UP_' + fr
+              : 'HOOD_SIDE_' + fr;
+        } else {
+          name = self.dir === 'down' ? 'HOOD_DOWN_0'
+            : self.dir === 'up' ? 'HOOD_UP_0'
+              : 'HOOD_SIDE_0';
+        }
+        var flip = self.dir === 'left';
+        var h = M.Spr.h(name);
+        // si está oculto, la columna lo tapa (se dibuja y la
+        // columna delante lo cubre por orden de profundidad)
+        M.Spr.draw(ctx, name, px - 8, py - h, { fade: f, flip: flip });
+      }
+    };
   };
 
-  Player.prototype.draw = function (ctx, sx, sy) {
-    var sp = this.sprite();
-    Spr.shadow(ctx, sx, sy + 1, 5);
-    Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.dir === 'E', alpha: this.alpha });
-  };
+  /* ================= ELLA ================= */
 
-  /* ============ LA NIÑA DE BLANCO ============ */
-  function Girl(gx, gy, waypoints, opts) {
-    this.gx = gx; this.gy = gy;
+  function Girl(x, y, waypoints, opts) {
+    opts = opts || {};
+    this.gx = x; this.gy = y;
     this.waypoints = waypoints || [];
     this.wp = 0;
-    this.speed = 2.0;
-    this.state = (opts && opts.startState) || 'wait'; // hidden | wait | go | gone | script
-    this.facing = 'S';
+    this.state = opts.startState || 'go';   // hidden | script | wait | go | gone
+    this.dir = 'up';
     this.animT = 0;
-    this.alpha = 1;
     this.waveT = 0;
-    this.onDone = (opts && opts.onDone) || null;
-    this.followFar = (opts && opts.followFar) || 6.0;
-    this.followNear = (opts && opts.followNear) || 3.2;
-    this.ledFar = false;   // avisó "no te demores"
     this.scriptTarget = null;
-    this.scriptSpeed = 2.4;
+    this.vanishT = 0;
+    this._vanishing = false;
   }
 
-  Girl.prototype.update = function (dt, player) {
+  Girl.prototype.update = function (dt) {
     if (this.state === 'gone' || this.state === 'hidden') return;
     this.animT += dt;
+    if (this.waveT > 0) this.waveT -= dt;
 
-    if (this.state === 'script') {
-      if (this.scriptTarget) {
-        var st = this._moveTo(this.scriptTarget.x, this.scriptTarget.y, this.scriptSpeed * dt);
-        if (st) this.scriptTarget = null;
-      }
+    if (this._vanishing) {
+      this.vanishT -= dt;
+      if (this.vanishT <= 0) { this._vanishing = false; this.state = 'gone'; }
       return;
     }
 
-    var d = M.dist(this.gx, this.gy, player.gx, player.gy);
-
     if (this.state === 'go') {
-      if (d > this.followFar) { this.state = 'wait'; this.waveT = 0; return; }
-      if (this.wp < this.waypoints.length) {
-        var wpt = this.waypoints[this.wp];
-        if (this._moveTo(wpt.x, wpt.y, this.speed * dt)) {
-          this.wp++;
-          if (this.wp >= this.waypoints.length && this.onDone) this.onDone();
-        }
+      var wp = this.waypoints[this.wp];
+      if (!wp) return;
+      var dx = wp.x - this.gx, dy = wp.y - this.gy;
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 0.1) {
+        if (this.wp < this.waypoints.length - 1) this.wp++;
+        return;
       }
-    } else if (this.state === 'wait') {
-      this.waveT += dt;
-      // gira hacia el niño
-      var dx = player.gx - this.gx, dy = player.gy - this.gy;
-      this.facing = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 'E' : 'W') : (dy > 0 ? 'S' : 'N');
-      if (d < this.followNear) {
-        this.state = 'go';
-        this.ledFar = false;
+      var sp = 1.7 * dt;
+      this.gx += (dx / d) * Math.min(sp, d);
+      this.gy += (dy / d) * Math.min(sp, d);
+      this.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    } else if (this.state === 'script' && this.scriptTarget) {
+      var t = this.scriptTarget;
+      var dx2 = t.x - this.gx, dy2 = t.y - this.gy;
+      var d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (d2 > 0.08) {
+        var sp2 = 1.7 * dt;
+        this.gx += (dx2 / d2) * Math.min(sp2, d2);
+        this.gy += (dy2 / d2) * Math.min(sp2, d2);
+        this.dir = Math.abs(dx2) > Math.abs(dy2) ? (dx2 > 0 ? 'right' : 'left') : (dy2 > 0 ? 'down' : 'up');
       }
     }
   };
 
-  Girl.prototype._moveTo = function (tx, ty, step) {
-    var dx = tx - this.gx, dy = ty - this.gy;
-    var d = Math.sqrt(dx * dx + dy * dy);
-    if (d < 0.06) return true;
-    var vx = dx / d, vy = dy / d;
-    this.gx += vx * Math.min(step, d);
-    this.gy += vy * Math.min(step, d);
-    this.facing = Math.abs(vx) >= Math.abs(vy) ? (vx > 0 ? 'E' : 'W') : (vy > 0 ? 'S' : 'N');
-    this.movingAnim = true;
-    return d <= step;
-  };
-
-  Girl.prototype.vanish = function (speed) {
-    var self = this;
-    this._vanishSpeed = speed || 0.8;
+  Girl.prototype.vanish = function (t) {
     this._vanishing = true;
+    this.vanishT = t || 1.2;
   };
 
-  Girl.prototype.updateVanish = function (dt) {
-    if (this._vanishing && this.alpha > 0) {
-      this.alpha -= this._vanishSpeed * dt;
-      if (this.alpha <= 0) { this.alpha = 0; this.state = 'gone'; }
-    }
+  Girl.prototype.drawable = function (fade, time) {
+    var self = this;
+    var px = this.gx * 8, py = this.gy * 8;
+    return {
+      baseY: py - 1,
+      draw: function (ctx, f) {
+        if (self.state === 'gone' || self.state === 'hidden') return;
+        // desvanecida 8-bit: parpadeo de fotogramas (sin alpha)
+        if (self._vanishing && Math.floor(self.vanishT * 14) % 2 === 0) return;
+        var name;
+        if (self.waveT > 0) name = 'GIRL_WAVE';
+        else name = self.dir === 'down' ? 'GIRL_DOWN'
+          : self.dir === 'up' ? 'GIRL_UP' : 'GIRL_SIDE';
+        var flip = self.dir === 'left';
+        M.Spr.draw(ctx, name, px - 6, py - 16, { fade: f, flip: flip });
+      }
+    };
   };
 
-  Girl.prototype.draw = function (ctx, sx, sy, t) {
-    if (this.alpha <= 0) return;
-    var S = Spr.S;
-    var sp;
-    var prof = (this.facing === 'W' || this.facing === 'E');
-    if (this.state === 'wait' && this.waveT > 0.8 && this.waveT < 2.0) {
-      sp = (Math.floor(this.waveT * 4) % 2 === 0) ? S.girlS_waveA : S.girlS_waveB;
-    } else if (this.state === 'go' || (this.state === 'script' && this.movingAnim)) {
-      var set = prof ? S.girlW : S.girlS;
-      sp = (Math.floor(this.animT * 6) % 2 === 0) ? set.walkA : set.walkB;
-    } else {
-      sp = prof ? S.girlW_idle : S.girlS_idle;
-    }
-    this.movingAnim = false;
-    Spr.shadow(ctx, sx, sy + 1, 5);
-    Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.facing === 'E', alpha: this.alpha });
-  };
+  /* ================= LA HERMANA ================= */
 
-  /* ============ LA HERMANA ============ */
-  function Sister(gx, gy, route, opts) {
-    this.gx = gx; this.gy = gy;
-    this.route = route || [];
+  function Sister(def) {
+    this.gx = def.x; this.gy = def.y;
+    this.route = def.route || [];
     this.wp = 0;
-    this.speed = 1.15;
-    this.state = 'script';  // script | patrol | wait | alert
-    this.facing = { x: 0, y: 1 };
-    this.animT = 0;
+    this.phase = 'move';    // move | wait | sweep
     this.waitT = 0;
-    this.sweeps = null;
+    this.sweeps = [];
+    this.sweepT = 0;
+    this.face = { x: 0, y: 1 };
+    this.state = 'patrol';  // script | patrol | alert
+    this.active = false;
     this.alertT = 0;
-    this.active = false;    // visión activa
+    this.animT = 0;
     this.scriptQueue = null;
     this.scriptDone = null;
-    this.lightR = 40;
-    this.coneR = 3.6;
-    this.coneHalf = 0.95;   // rad
+    this.onSeen = null;
+    this.dir = 'down';
   }
 
-  Sister.prototype.update = function (dt, player, map) {
+  Sister.prototype._dirFromVec = function (x, y) {
+    if (Math.abs(x) > Math.abs(y)) return x > 0 ? 'right' : 'left';
+    return y > 0 ? 'down' : 'up';
+  };
+
+  Sister.prototype.update = function (dt, world) {
     this.animT += dt;
-    var dpx = player.gx - this.gx, dpy = player.gy - this.gy;
-    var d = Math.sqrt(dpx * dpx + dpy * dpy);
 
     if (this.state === 'alert') {
       this.alertT -= dt;
@@ -190,214 +196,324 @@
       return;
     }
 
-    if (this.state === 'script') {
-      if (this.scriptQueue && this.scriptQueue.length) {
-        var cmd = this.scriptQueue[0];
-        if (cmd.type === 'move') {
-          if (this._moveTo(cmd.x, cmd.y, (cmd.speed || 1.1) * dt)) this.scriptQueue.shift();
-        } else if (cmd.type === 'wait') {
-          cmd.t -= dt;
-          if (cmd.t <= 0) this.scriptQueue.shift();
-        } else if (cmd.type === 'face') {
-          this.facing = { x: cmd.x, y: cmd.y };
-          this.scriptQueue.shift();
-        }
-      } else if (this.scriptDone) {
-        var f = this.scriptDone; this.scriptDone = null; f();
+    if (this.state === 'script' && this.scriptQueue) {
+      var st = this.scriptQueue[0];
+      if (!st) {
+        this.scriptQueue = null;
+        if (this.scriptDone) this.scriptDone();
+        return;
       }
-      if (this.active) this._visionCheck(player, map, d, dpx, dpy);
+      if (st.type === 'move') {
+        var dx = st.x - this.gx, dy = st.y - this.gy;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 0.08) { this.scriptQueue.shift(); return; }
+        var sp = (st.speed || 2) * dt;
+        this.gx += (dx / d) * Math.min(sp, d);
+        this.gy += (dy / d) * Math.min(sp, d);
+        this.dir = this._dirFromVec(dx, dy);
+        this.face = { x: dx / d, y: dy / d };
+      } else if (st.type === 'face') {
+        this.face = { x: st.x, y: st.y };
+        this.dir = this._dirFromVec(st.x, st.y);
+        this.scriptQueue.shift();
+      } else if (st.type === 'wait') {
+        st.t -= dt;
+        if (st.t <= 0) this.scriptQueue.shift();
+      }
       return;
     }
 
-    // patrulla
-    if (this.state === 'patrol' && this.route.length) {
-      var wpt = this.route[this.wp];
-      if (this._moveTo(wpt.x, wpt.y, this.speed * dt)) {
-        // llegó: esperar y mirar
-        this.state = 'wait';
-        this.waitT = wpt.wait || 1.2;
-        if (wpt.face) this.facing = { x: wpt.face.x, y: wpt.face.y };
-        this.sweeps = wpt.sweeps || null;
-        this.sweepI = 0;
-        this.sweepT = 0;
+    if (!this.active || this.state !== 'patrol') return;
+
+    // patrulla por ruta
+    var wp = this.route[this.wp];
+    if (!wp) return;
+
+    if (this.phase === 'move') {
+      var dx2 = wp.x - this.gx, dy2 = wp.y - this.gy;
+      var d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+      if (d2 < 0.1) {
+        this.phase = 'wait';
+        this.waitT = wp.wait || 0;
+        this.sweeps = (wp.sweeps || []).slice();
+        if (wp.face) { this.face = wp.face; this.dir = this._dirFromVec(wp.face.x, wp.face.y); }
+        return;
       }
-    } else if (this.state === 'wait') {
+      var sp2 = 1.9 * dt;
+      this.gx += (dx2 / d2) * Math.min(sp2, d2);
+      this.gy += (dy2 / d2) * Math.min(sp2, d2);
+      this.dir = this._dirFromVec(dx2, dy2);
+      this.face = { x: dx2 / d2, y: dy2 / d2 };
+    } else if (this.phase === 'wait') {
       this.waitT -= dt;
-      if (this.sweeps && this.sweepI < this.sweeps.length) {
-        this.sweepT -= dt;
-        if (this.sweepT <= 0) {
-          var sw = this.sweeps[this.sweepI];
-          this.facing = { x: sw.x, y: sw.y };
-          this.sweepT = sw.t;
-          this.sweepI++;
-        }
-      }
       if (this.waitT <= 0) {
-        this.wp = (this.wp + 1) % this.route.length;
-        this.state = 'patrol';
-      }
-    }
-
-    if (this.active) this._visionCheck(player, map, d, dpx, dpy);
-  };
-
-  Sister.prototype._moveTo = function (tx, ty, step) {
-    var dx = tx - this.gx, dy = ty - this.gy;
-    var d = Math.sqrt(dx * dx + dy * dy);
-    if (d < 0.05) return true;
-    var vx = dx / d, vy = dy / d;
-    this.gx += vx * Math.min(step, d);
-    this.gy += vy * Math.min(step, d);
-    if (d > 0.15) this.facing = { x: vx, y: vy };
-    return d <= step;
-  };
-
-  // comprobación de visión (sigilo)
-  Sister.prototype._visionCheck = function (player, map, d, dpx, dpy) {
-    if (M.Game.state.grace > 0) return;
-    if (d > this.coneR + 0.4) return;
-    var seen = false;
-    if (d < 1.2) {
-      seen = this._los(map, player);
-    } else {
-      // ángulo respecto a su mirada
-      var fdot = (this.facing.x * dpx + this.facing.y * dpy) / (d || 1);
-      if (fdot > Math.cos(this.coneHalf)) {
-        seen = this._los(map, player);
-      }
-    }
-    if (seen && this.onSeen) this.onSeen();
-  };
-
-  // raycast por rejilla: las columnas y muros bloquean la vista
-  Sister.prototype._los = function (map, player) {
-    var steps = Math.ceil(M.dist(this.gx, this.gy, player.gx, player.gy) / 0.2);
-    for (var i = 1; i < steps; i++) {
-      var t = i / steps;
-      var x = this.gx + (player.gx - this.gx) * t;
-      var y = this.gy + (player.gy - this.gy) * t;
-      var tile = M.Iso.tileAt(map, Math.floor(x), Math.floor(y));
-      if (!tile || tile.solid) return false;
-    }
-    return true;
-  };
-
-  Sister.prototype.sprite = function () {
-    var S = Spr.S;
-    var prof = Math.abs(this.facing.x) > Math.abs(this.facing.y);
-    if (this.state === 'alert') return S.nunS_alert;
-    var set = prof ? { a: S.nunW_a, b: S.nunW_b } : { a: S.nunS_a, b: S.nunS_b };
-    return (Math.floor(this.animT * 4) % 2 === 0) ? set.a : set.b;
-  };
-
-  Sister.prototype.draw = function (ctx, sx, sy) {
-    var sp = this.sprite();
-    Spr.shadow(ctx, sx, sy + 1, 6);
-    Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.facing.x > 0.3 && Math.abs(this.facing.x) > Math.abs(this.facing.y) });
-  };
-
-  /* Cono de visión estilo 1987: NADA de polígono translúcido —
-     la NES falseaba la transparencia con TRAMA de tablero de
-     ajedrez. El cono se hornea por dirección (24 casillas) y
-     estado (normal/alerta) en un canvas cacheado, rasterizado
-     píxel a píxel: puntos carmesí en tablero 50% + borde duro. */
-  var CONE_CACHE = {};
-  Sister.prototype._coneSprite = function (bucket, alert) {
-    var key = bucket + (alert ? 'A' : 'N');
-    if (CONE_CACHE[key]) return CONE_CACHE[key];
-    var baseA = bucket * Math.PI * 2 / 24;
-    var pts = [];
-    var steps = 9, i;
-    for (i = 0; i <= steps; i++) {
-      var a = baseA - this.coneHalf + (this.coneHalf * 2 * i / steps);
-      // mundo→pantalla isométrico (forma independiente de posición)
-      pts.push({
-        x: (Math.cos(a) - Math.sin(a)) * this.coneR * M.TILE_HW,
-        y: (Math.cos(a) + Math.sin(a)) * this.coneR * M.TILE_HH
-      });
-    }
-    // caja contenedora del abanico
-    var minX = 0, maxX = 0, minY = 0, maxY = 0;
-    for (i = 0; i < pts.length; i++) {
-      if (pts[i].x < minX) minX = pts[i].x;
-      if (pts[i].x > maxX) maxX = pts[i].x;
-      if (pts[i].y < minY) minY = pts[i].y;
-      if (pts[i].y > maxY) maxY = pts[i].y;
-    }
-    var W = Math.ceil(maxX - minX) + 2, H = Math.ceil(maxY - minY) + 2;
-    var c = document.createElement('canvas');
-    c.width = W; c.height = H;
-    var g = c.getContext('2d');
-    var col = alert ? M.C.LCRIM : M.C.CRIM;
-    g.fillStyle = M.PAL[col];
-    // relleno tramado: punto dentro del polígono (origen en (0,0)
-    // desplazado a (-minX+1, -minY+1)) y tablero 50%
-    var ox = -minX + 1, oy = -minY + 1;
-    var poly = [{ x: ox, y: oy }];
-    for (i = 0; i < pts.length; i++) poly.push({ x: pts[i].x + ox, y: pts[i].y + oy + 4 });
-    function inPoly(px, py) {
-      var inside = false, j, k;
-      for (j = 0, k = poly.length - 1; j < poly.length; k = j++) {
-        if (((poly[j].y > py) !== (poly[k].y > py)) &&
-            (px < (poly[k].x - poly[j].x) * (py - poly[j].y) / (poly[k].y - poly[j].y) + poly[j].x)) {
-          inside = !inside;
+        if (this.sweeps.length) {
+          this.phase = 'sweep';
+          this.sweepT = this.sweeps[0].t;
+          this.face = { x: this.sweeps[0].x, y: this.sweeps[0].y };
+          this.dir = this._dirFromVec(this.face.x, this.face.y);
+        } else {
+          this.phase = 'move';
+          this.wp = (this.wp + 1) % this.route.length;
         }
       }
-      return inside;
+    } else if (this.phase === 'sweep') {
+      this.sweepT -= dt;
+      if (this.sweepT <= 0) {
+        this.sweeps.shift();
+        this.phase = 'wait';
+        this.waitT = 0.001;
+      }
     }
-    var xx, yy;
-    for (yy = 0; yy < H; yy++) {
-      for (xx = 0; xx < W; xx++) {
-        if (((xx + yy) & 1) === 0 && inPoly(xx + 0.5, yy + 0.5)) {
-          g.fillRect(xx, yy, 1, 1);
+
+    // visión: cono en la dirección de la mirada
+    if (world && world.player && world.player.pose !== 'hide' && !world.player.hidden) {
+      var pdx = world.player.gx - this.gx, pdy = world.player.gy - this.gy;
+      var pd = Math.sqrt(pdx * pdx + pdy * pdy);
+      if (pd < 4.8) {
+        var dot = (pdx * this.face.x + pdy * this.face.y) / (pd || 1);
+        if (dot > 0.55 && this.onSeen) this.onSeen();
+      }
+    }
+  };
+
+  Sister.prototype.drawable = function (fade, time) {
+    var self = this;
+    var px = this.gx * 8, py = this.gy * 8;
+    return {
+      baseY: py,
+      draw: function (ctx, f) {
+        if (!self.active && self.state === 'script' && !self.scriptQueue) return;
+        var fr = Math.floor(self.animT * 5) % 2;
+        var name = self.dir === 'down' ? 'SIS_DOWN_' + fr
+          : self.dir === 'up' ? 'SIS_UP_' + fr
+            : 'SIS_SIDE_' + fr;
+        var flip = self.dir === 'left';
+        M.Spr.draw(ctx, name, px - 7, py - 20, { fade: f, flip: flip });
+        // su vela: luz viva en la mano
+        M.Spr.drawFlame(ctx, px + 4, py - 20, time, f);
+        // alerta: exclamación magenta
+        if (self.state === 'alert') {
+          M.Spr.draw(ctx, 'EXCLAM', px - 2, py - 34, { fade: f });
         }
       }
-    }
-    // borde duro: los dos radios del abanico en píxel sólido
-    function pxLine(x0, y0, x1, y1) {
-      var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)), t2;
-      for (t2 = 0; t2 <= n; t2++) {
-        g.fillRect(Math.round(x0 + (x1 - x0) * t2 / (n || 1)),
-                   Math.round(y0 + (y1 - y0) * t2 / (n || 1)), 1, 1);
-      }
-    }
-    pxLine(ox, oy, poly[1].x, poly[1].y);
-    pxLine(ox, oy, poly[poly.length - 1].x, poly[poly.length - 1].y);
-
-    var spr = { canvas: c, ox: ox, oy: oy };
-    CONE_CACHE[key] = spr;
-    return spr;
+    };
   };
 
-  // cono de visión proyectado a la pantalla isométrica
-  Sister.prototype.drawCone = function (ctx, toScreen) {
-    if (!this.active) return;
-    var alert = this.state === 'alert';
-    var baseA = Math.atan2(this.facing.y, this.facing.x);
-    var bucket = Math.round(((baseA + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 24) % 24;
-    var spr = this._coneSprite(bucket, alert);
-    var o = toScreen(this.gx, this.gy);
-    ctx.drawImage(spr.canvas, Math.round(o.x - spr.ox), Math.round(o.y - 10 - spr.oy));
-  };
+  /* ================= BICHOS ================= */
 
-  /* ============ objetos menores ============ */
-  function Candle(gx, gy) {
-    this.gx = gx; this.gy = gy;
-    this.taken = false;
-    this.t = Math.random() * 10;
+  function Rat(a, b, gy) {
+    this.a = a; this.b = b; this.gy = gy;
+    this.gx = a; this.dir = 1;
+    this.t = 0;
   }
-  Candle.prototype.draw = function (ctx, sx, sy) {
-    if (this.taken) return;
-    this.t += 0.016;
-    var sp = (Math.floor(this.t * 6) % 2 === 0) ? Spr.S.candle_a : Spr.S.candle_b;
-    Spr.draw(ctx, sp, sx - 3, sy - 8);
+  Rat.prototype.update = function (dt) {
+    this.t += dt;
+    this.gx += this.dir * 2.2 * dt;
+    if (this.gx > this.b) { this.gx = this.b; this.dir = -1; }
+    if (this.gx < this.a) { this.gx = this.a; this.dir = 1; }
+  };
+  Rat.prototype.drawable = function (fade, time) {
+    var self = this;
+    var px = this.gx * 8, py = this.gy * 8;
+    return {
+      baseY: py - 4,
+      draw: function (ctx, f) {
+        var fr = Math.floor(self.t * 8) % 2;
+        M.Spr.draw(ctx, 'RAT_' + fr, px - 4, py - 5, { fade: f, flip: self.dir < 0 });
+      }
+    };
   };
 
-  M.Entities = {
-    Player: Player,
-    Girl: Girl,
-    Sister: Sister,
-    Candle: Candle,
-    init: function () { Spr = M.Spr; }
+  function Bat(x0, y0, ampx, ampy, phase) {
+    this.x0 = x0; this.y0 = y0;
+    this.ampx = ampx || 20; this.ampy = ampy || 8;
+    this.phase = phase || 0;
+    this.t = phase;
+  }
+  Bat.prototype.update = function (dt) { this.t += dt; };
+  Bat.prototype.drawable = function (fade, time) {
+    var self = this;
+    return {
+      baseY: -100,   // siempre sobre el mundo (detrás de nadie)
+      draw: function (ctx, f) {
+        var x = self.x0 * 8 + Math.sin(self.t * 0.9) * self.ampx;
+        var y = self.y0 * 8 + Math.sin(self.t * 2.3) * self.ampy;
+        var fr = Math.floor(self.t * 7) % 2;
+        M.Spr.draw(ctx, 'BAT_' + fr, x - 5, y, { fade: f });
+      }
+    };
   };
+
+  /* ============================================================
+     EL MUNDO DE ESCENA: une sala + entidades + reglas
+     ============================================================ */
+
+  function WorldScene(def) {
+    this.room = new M.Room(def.room);
+    this.player = new Player(def.playerStart.x, def.playerStart.y);
+    this.axis = { x: 0, y: 0 };
+    this.control = false;
+    this.time = 0;
+    this.fade = 0;
+    this.lightning = false;
+    this.dynLights = [];
+    this.extraLights = [];
+
+    this.girl = def.girl ? new Girl(def.girl.x, def.girl.y, def.girl.waypoints, def.girl) : null;
+    this.sister = def.sister ? new Sister(def.sister) : null;
+    this.rats = [];
+    this.bats = [];
+    this.candles = (def.candles || []).map(function (c) {
+      return { tx: c[0], ty: c[1], taken: false };
+    });
+
+    // zonas de cobertura tras columnas
+    this.hides = (def.hides || []).map(function (h) {
+      return { x: h[0], y: h[1] };
+    });
+
+    this.triggers = [];
+    this.interactables = [];
+    this.doorOpen = false;
+    this.doorProp = null;
+  }
+
+  WorldScene.prototype.update = function (dt, game) {
+    this.time += dt;
+    this.lightning = M.FX.isLightning();
+    this.axis = this.control ? M.Input.axis() : { x: 0, y: 0 };
+    this.player.update(dt, this);
+
+    if (this.girl) this.girl.update(dt);
+    if (this.sister) this.sister.update(dt, this);
+    for (var i = 0; i < this.rats.length; i++) this.rats[i].update(dt);
+    for (var j = 0; j < this.bats.length; j++) this.bats[j].update(dt);
+
+    // disparadores por proximidad
+    if (this.control) {
+      for (var t = 0; t < this.triggers.length; t++) {
+        var tr = this.triggers[t];
+        if (tr.done) continue;
+        if (M.dist(this.player.gx, this.player.gy, tr.x, tr.y) < (tr.r || 1.4)) {
+          if (tr.once) tr.done = true;
+          tr.fn();
+        }
+      }
+      // interactuables: FUEGO (o tecla alternativa)
+      for (var k = 0; k < this.interactables.length; k++) {
+        var it = this.interactables[k];
+        if (it.done) continue;
+        var near = M.dist(this.player.gx, this.player.gy, it.x, it.y) < (it.r || 1.4);
+        var key = it.key || 'fire';
+        if (near && it.hint && !M.UI.hint && !M.UI.dialog) M.UI.showHint(it.hint, 0.4);
+        if (near && M.Input.hit(key)) {
+          if (it.once) it.done = true;
+          it.fn();
+        }
+      }
+    }
+
+    // luces dinámicas: velas sueltas + vela de la hermana + ella
+    this.dynLights.length = 0;
+    for (var c = 0; c < this.candles.length; c++) {
+      var cd = this.candles[c];
+      if (!cd.taken) {
+        this.dynLights.push({ px: cd.tx * 8 + 4, py: cd.ty * 8 + 2, r: 26 });
+      }
+    }
+    if (this.sister && this.sister.active) {
+      this.dynLights.push({ px: this.sister.gx * 8 + 5, py: this.sister.gy * 8 - 16, r: 28 });
+    }
+    if (this.girl && this.girl.state !== 'gone' && this.girl.state !== 'hidden') {
+      this.dynLights.push({ px: this.girl.gx * 8, py: this.girl.gy * 8 - 8, r: 15 });
+    }
+    for (var e = 0; e < this.extraLights.length; e++) {
+      this.dynLights.push(this.extraLights[e]);
+    }
+  };
+
+  WorldScene.prototype.draw = function (ctx) {
+    var self = this;
+    var drawables = [];
+
+    // objetos de suelo del diorama (lápidas, columnas, mesas...)
+    var fps = this.room.floorProps;
+    for (var i = 0; i < fps.length; i++) {
+      drawables.push(this._propDrawable(fps[i]));
+    }
+
+    // velas recogibles
+    for (var c = 0; c < this.candles.length; c++) {
+      var cd = this.candles[c];
+      if (cd.taken) continue;
+      (function (candle) {
+        drawables.push({
+          baseY: candle.ty * 8 + 8,
+          draw: function (ctx, f) {
+            M.Spr.draw(ctx, 'CANDLE', candle.tx * 8 + 1, candle.ty * 8 - 1, { fade: f });
+            M.Spr.drawFlame(ctx, candle.tx * 8 + 1, candle.ty * 8 - 7, self.time, f);
+          }
+        });
+      })(cd);
+    }
+
+    // la puerta carmesí (si sigue cerrada): doble hoja que llena
+    // la ogiva, anclada al arranque del muro
+    if (this.doorProp && !this.doorOpen) {
+      (function (dp) {
+        drawables.push({
+          baseY: dp.bottomY - 20,
+          draw: function (ctx, f) {
+            M.Spr.draw(ctx, 'DOORG', dp.cx - 15, dp.bottomY - M.Spr.h('DOORG'), { fade: f });
+          }
+        });
+      })(this.doorProp);
+    }
+
+    // criaturas
+    drawables.push(this.player.drawable(this.fade, this.time));
+    if (this.girl) drawables.push(this.girl.drawable(this.fade, this.time));
+    if (this.sister) drawables.push(this.sister.drawable(this.fade, this.time));
+    for (var r = 0; r < this.rats.length; r++) drawables.push(this.rats[r].drawable(this.fade, this.time));
+    for (var b = 0; b < this.bats.length; b++) drawables.push(this.bats[b].drawable(this.fade, this.time));
+
+    this.room.draw(ctx, this, drawables);
+  };
+
+  WorldScene.prototype._propDrawable = function (p) {
+    var size = p.size || 1;
+    var baseY = (p.ty + size) * 8;
+    return {
+      baseY: p.baseY !== undefined ? p.baseY : baseY - 24,
+      draw: function (ctx, f) {
+        if (p.kind === 'DEADTREE') {
+          M.Spr.draw(ctx, 'DEADTREE', p.tx * 8 + (size * 8 - 22) / 2, baseY - 28, { fade: f });
+        } else if (p.kind === 'BIGTREE') {
+          M.Spr.drawBigTree(ctx, p.tx * 8, baseY - 124, 0);
+        } else if (p.kind === 'STAIRS') {
+          M.Spr.draw(ctx, 'STAIRS', p.tx * 8, baseY - 10, { fade: f });
+        } else if (p.kind === 'COLUMN') {
+          M.Spr.draw(ctx, 'COLUMN', p.tx * 8 + (size * 8 - 12) / 2, baseY - 25, { fade: f });
+        } else {
+          var name = p.kind; // sprite directo
+          var w = M.Spr.w(name);
+          M.Spr.draw(ctx, name, p.tx * 8 + (size * 8 - w) / 2, baseY - M.Spr.h(name), { fade: f });
+        }
+      }
+    };
+  };
+
+  // caja de colisión (en teselas) contra la rejilla sólida
+  WorldScene.prototype.collides = function (gx, gy) {
+    return this.room.solid(Math.floor(gx), Math.floor(gy));
+  };
+
+  M.Player = Player;
+  M.Girl = Girl;
+  M.Sister = Sister;
+  M.Rat = Rat;
+  M.Bat = Bat;
+  M.WorldScene = WorldScene;
+
 })(window.MISTICAS);

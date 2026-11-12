@@ -1,156 +1,122 @@
 'use strict';
 /* ============================================================
-   MÍSTICAS — (C) 1987 — config.js
-   Espacio de nombres global, paleta ultra reducida de 16
-   colores y constantes del motor. Todo el juego dibuja
-   exclusivamente con estos índices.
+   MÍSTICAS — (C) 1987 — js/config.js
+   EL CARTUCHO: constantes del motor.
+
+   Resolución NATIVA Famicom/NES: 256x240 píxeles, teselas de 8x8.
+   Paleta estricta de 16 colores tomada del chip 2C02 real.
+   La "iluminación" NO usa alpha: cada tesela se hornea en 3
+   bancos (SOMBRA / NORMAL / LUZ) sustituyendo índices de paleta,
+   exactamente como la PPU cambiaba sus registros de color.
    ============================================================ */
 window.MISTICAS = window.MISTICAS || {};
-
 (function (M) {
 
-  // Resolución lógica INTERNA FIJA (4:3, monitor de 1987): 320x240.
-  // Todo el juego (mundo + HUD + textos) se dibuja SIEMPRE dentro de
-  // este lienzo virtual: el HUD jamás queda fuera del marco. main.js
-  // solo la ESCALA al tamaño de la ventana con letterbox (fit-contain,
-  // barras negras) y coloca los controles táctiles fuera del tubo.
-  M.SCREEN_W = 320;
+  /* ---- Pantalla: norma NTSC del cartucho ---- */
+  M.SCREEN_W = 256;
   M.SCREEN_H = 240;
-  M.HUD_H = 36;                    // barra inferior retro (marco NEXUS de 32 px)
-  M.VIEW_H = M.SCREEN_H - M.HUD_H; // alto de mundo visible: 204 px
+  M.HUD_H = 24;                     // 3 teselas de HUD inferior fijo
+  M.VIEW_H = M.SCREEN_H - M.HUD_H;  // 216 px de mundo visible
 
-  // Reserva de banda superior/inferior para los controles táctiles
-  // cuando las barras del letterbox no dan espacio de sobra.
+  M.TILE = 8;
+  M.ROOM_W = M.SCREEN_W / M.TILE;   // 32 columnas
+  M.ROOM_H = M.VIEW_H / M.TILE;     // 27 filas
+
+  // Reservas para controles táctiles (px de banda)
   M.TOUCH_TOP = 48;
-  M.TOUCH_BOTTOM_TALL = 124; // zona inferior: joystick (104) + FUEGO + aire
-  M.TOUCH_BOTTOM_WIDE = 56;   // (legacy: banda lateral holgada)
+  M.TOUCH_BOTTOM_TALL = 128;
 
-  // ¿La resolución interna es estrecha? (legacy: ahora es fija y ancha)
-  M.isNarrow = function () { return M.SCREEN_W < 240; };
-
-  // Rejilla isométrica
-  M.TILE_W = 16;
-  M.TILE_H = 8;
-  M.TILE_HW = 8; // mitad de ancho
-  M.TILE_HH = 4; // mitad de alto
-
-  /* Paleta de 16 colores RÉPLICA EXACTA del metraje del podcast
-     (medida sobre los fotogramas a resolución completa):
-     - Suelo del convento: damero de rombos #6D28D9 sobre #1E0B26
-       con junta negra (como en la sala amueblada del video).
-     - Muros: ladrillo carmín (#8E1B12 sombra / #D93025 cara) con
-       mortero negro; familia violeta (#5B21B6) para criptas.
-     - Aristas y marcos: rosa salmón #E8A0A0 (pilastros, sillas,
-       capitel, velas, filetes del HUD).
-     - Acentos hipervibrantes: carmesí #D93025 (puertas, arcos,
-       corazones, capucha, inscripción NEXUS). */
-  M.PAL = [
-    '#000000', // 0  NEGRO absoluto (fondo, mortero, contornos)
-    '#1E0B26', // 1  VDARK: damero oscuro del suelo, piedra de noche
-    '#2A1038', // 2  DARK: masa violeta (suelos, pelo de la niña)
-    '#6D28D9', // 3  DPURP: damero CLARO violeta + pantalón azul-violeta
-    '#5B21B6', // 4  PURP: púrpura profundo de marcos (arcos, slots)
-    '#8B5CF6', // 5  LPURP: violeta luminoso (damero encendido, llama del aplique)
-    '#A06BF0', // 6  MAG: violeta vivo (frutos, murciélagos, marcador)
-    '#E8A0A0', // 7  LMAG: SALMÓN (aristas, sillas, cara del niño, cera)
-    '#D93025', // 8  CRIM: CARMESÍ (ladrillo claro, capucha, corazones, latín)
-    '#FF4A2A', // 9  LCRIM: rojo alerta (destellos, NEXUS al subir)
-    '#FF7A1E', // A  naranja (llama de vela)
-    '#FFC44D', // B  naranja claro (llama interior)
-    '#E8E0D0', // C  hueso (cráneos, texto principal)
-    '#A890B8', // D  gris violáceo (texto secundario, piedra)
-    '#FFF3EA', // E  blanco cálido mínimo (brillo, vestido)
-    '#8E1B12', // F  BLOOD: marrón ladrillo (sombra de capucha, botas,
-    //               contorno de corazones, junta del gótico)
-  ];
-
-  // Alias semánticos
-  M.C = {
-    BLACK: 0, VDARK: 1, DARK: 2, DPURP: 3, PURP: 4, LPURP: 5,
-    MAG: 6, LMAG: 7, CRIM: 8, LCRIM: 9, ORANG: 10, LORAN: 11,
-    BONE: 12, BONE2: 13, WHITE: 14, BLOOD: 15
-  };
-
-  // Versión y marca
   M.VERSION = 'FASE 1 - EL INICIO';
   M.YEAR = '1987';
 
-  // Estado global de la partida (lo reinicia la pantalla de título)
-  M.Game = M.Game || {};
+  /* ============================================================
+     PALETA 2C02 — 16 colores, todos auténticos de la NES.
+     Ningún píxel del juego puede salir de esta tabla.
+     ============================================================ */
+  M.PAL_MASTER = [
+    '#000000', // 0  NEGRO absoluto (fondo, mortero, contornos)
+    '#4428BC', // 1  VIOLETA oscuro — ladrillo base, cortezas
+    '#6844FC', // 2  VIOLETA — ladrillo claro, piedra de arco
+    '#940084', // 3  PÚRPURA oscuro — ladrillo alterno, junta de suelo
+    '#D800CC', // 4  PÚRPURA vivo — filetes, marcos, adornos
+    '#F878F8', // 5  MAGENTA brillante — acentos hipervibrantes, LUZ
+    '#E40058', // 6  CARMESÍ — capucha, puertas, corazones, alfombra
+    '#A80020', // 7  CARMESÍ oscuro — sombras del carmesí
+    '#F83800', // 8  ROJO — llama exterior, alertas
+    '#FCA044', // 9  NARANJA — llama media, brasa
+    '#F8B800', // 10 AMARILLO — núcleo de llama
+    '#FCFCFC', // 11 BLANCO puro — texto, cera, vestido
+    '#BCBCBC', // 12 GRIS claro — piedra clara, texto secundario
+    '#7C7C7C', // 13 GRIS oscuro — piedra, sombra de piedra
+    '#FCE0A8', // 14 HUESO — piel, cráneos, liras
+    '#F8B8F8'  // 15 LILA — brillo del vestido blanco
+  ];
 
-  M.newGameState = function () {
-    return {
-      hearts: 5,          // barra de vida: 5 corazones
-      candles: 0,         // contador de velas
-      candlesMax: 3,
-      book: 1,            // el niño lleva su libro
-      nexus: 0,           // progreso NEXUS CUM NUMINE (0-100)
-      nexusFlag: 0,       // para el parpadeo al aumentar
-      startTime: 0,
-      time: 0,
-      deaths: 0,
-      hidden: false,      // el niño está oculto tras una columna
-      seen: false,        // una hermana lo ha visto
-      grace: 0            // invulnerabilidad breve tras ser visto
-    };
-  };
+  // Tabla ACTIVA (el motor la sustituye en sitio para fundidos)
+  M.PAL = M.PAL_MASTER.slice();
 
-  // Determinista: hash rápido para detalles por tesela
-  M.hash = function (x, y) {
-    var h = (x * 374761393 + y * 668265263) | 0;
-    h = (h ^ (h >> 13)) * 1274126177 | 0;
-    return ((h ^ (h >> 16)) >>> 0) / 4294967295;
+  M.C = {
+    BLACK: 0, DVIOLET: 1, VIOLET: 2, DPURPLE: 3, PURPLE: 4,
+    MAGENTA: 5, CRIMSON: 6, BLOOD: 7, RED: 8, ORANGE: 9,
+    YELLOW: 10, WHITE: 11, GRAY: 12, DGRAY: 13, BONE: 14, LILAC: 15
   };
 
   /* ============================================================
-     REGISTROS DE PALETA POR NIVEL DE LUZ (estilo PPU de la NES)
-     El chip gráfico de 1987 no sabía mezclar colores: una vela
-     "iluminaba" cambiando DIRECTAMENTE el registro de color de
-     los tiles contiguos. Aquí cada nivel de luz es una tabla de
-     sustitución índice→índice sobre la paleta de 16 colores:
-       nivel 3 = TORCIDO POR LA LUZ (bloque junto a la llama:
-                 las masas saltan a violeta vivo y las aristas a
-                 blanco puro — el "cambio de registro" del canon)
-       nivel 2 = NORMAL (paleta tal cual)
-       nivel 1 = PENUMBRA (cada color cae dos rangos)
-       nivel 0 = OSCURIDAD (siluetas: todo colapsa a violeta
-                 casi negro y negro mortero)
-     NUNCA alpha, NUNCA degradados: solo colores planos que se
-     sustituyen de golpe, tesela a tesela.
+     BANCOS DE PALETA POR NIVEL DE LUZ (registros de la PPU)
+     level 0 = SOMBRA: cada color cae un escalón
+     level 1 = NORMAL: paleta tal cual
+     level 2 = LUZ:    las masas saltan a violeta vivo / magenta
+                       y las aristas a blanco — el "cambio de
+                       registro" de la vela sobre la tesela contigua
      ============================================================ */
   M.PALSWAP = [
-    /* 0 OSCURIDAD */ [0, 1, 1, 1, 1, 2, 2, 4, 2, 15, 10, 11, 13, 1, 13, 1],
-    /* 1 PENUMBRA  */ [0, 1, 1, 2, 2, 3, 4, 6, 15, 8, 10, 11, 13, 4, 12, 2],
-    /* 2 NORMAL    */ [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
-    /* 3 LIT       */ [0, 3, 5, 6, 5, 7, 7, 14, 9, 9, 10, 11, 14, 7, 14, 8]
+    /* 0 SOMBRA */ [0, 3, 1, 3, 3, 4, 7, 7, 7, 6, 9, 12, 13, 13, 12, 12],
+    /* 1 NORMAL */ [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    /* 2 LUZ    */ [0, 2, 5, 4, 5, 11, 5, 6, 9, 10, 11, 11, 11, 12, 11, 11]
   ];
 
-  // Aplica una tabla de sustitución SOLO durante fn: respalda
-  // M.PAL, la intercambia en sitio, ejecuta y restaura. Así los
-  // constructores de canvas (puertas, arcos…) se "hornear" por
-  // nivel de luz exactamente como la NES horneaba sus tiles con
-  // cada banco de paleta.
-  M.withPalette = function (swap, fn) {
-    var backup = M.PAL.slice();
-    for (var i = 0; i < 16; i++) M.PAL[i] = backup[swap[i]];
-    try { return fn(); }
-    finally { for (var j = 0; j < 16; j++) M.PAL[j] = backup[j]; }
+  // Fundido de escena SIN alpha: la paleta entera colapsa por
+  // pasos (como apagar el televisor poco a poco). 5 bancos.
+  M.FADESWAP = [
+    M.PALSWAP[1],                                        // 0.0 abierto
+    M.PALSWAP[0],                                        // 0.3
+    [0, 3, 3, 3, 3, 3, 7, 7, 7, 7, 3, 3, 3, 3, 3, 3],    // 0.6
+    [0, 3, 3, 3, 3, 3, 3, 7, 7, 3, 3, 3, 3, 3, 3, 3],    // 0.85
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]     // 1.0 negro
+  ];
+
+  // Aplica un banco sobre la tabla activa (en sitio)
+  M.applyPaletteSwap = function (swap) {
+    for (var i = 0; i < 16; i++) M.PAL[i] = M.PAL_MASTER[swap[i]];
   };
 
-  // Remapa hexadecimal (carácter→carácter) para Spr.draw: convierte
-  // la tabla de nivel en el diccionario que usan los sprites.
-  M.remapFor = function (level) {
-    var sw = M.PALSWAP[level];
-    var rm = {};
-    for (var i = 0; i < 16; i++) rm[i.toString(16).toUpperCase()] = sw[i].toString(16).toUpperCase();
-    return rm;
+  /* ---- Estado global de la partida ---- */
+  M.newGameState = function () {
+    return {
+      hearts: 5,          // corazones (vida)
+      candles: 0,         // velas recogidas
+      candlesMax: 3,
+      nexus: 0,           // progreso NEXUS CUM NUMINE (0-100)
+      nexusFlag: 0,
+      startTime: 0,
+      deaths: 0,
+      grace: 0,           // invulnerabilidad breve tras ser visto
+      hidden: false
+    };
   };
 
+  /* ---- Utilidades ---- */
   M.clamp = function (v, a, b) { return v < a ? a : (v > b ? b : v); };
   M.lerp = function (a, b, t) { return a + (b - a) * t; };
   M.dist = function (ax, ay, bx, by) {
     var dx = ax - bx, dy = ay - by;
     return Math.sqrt(dx * dx + dy * dy);
+  };
+  // Hash determinista [0,1) para variaciones por tesela
+  M.hash = function (x, y) {
+    var h = (x * 374761393 + y * 668265263) | 0;
+    h = (h ^ (h >> 13)) * 1274126177 | 0;
+    return ((h ^ (h >> 16)) >>> 0) / 4294967295;
   };
 
 })(window.MISTICAS);

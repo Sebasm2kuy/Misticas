@@ -1,12 +1,11 @@
 /* ============================================================
-   MÍSTICAS — (C) 1987 — Hoja de estilos del "monitor CRT"
-   LETTERBOX 4:3: el juego vive en un lienzo lógico fijo de
-   320x240 que main.js escala con fit-contain (barras negras
-   donde haga falta). El tubo NUNCA se estira ni se recorta:
-   el HUD queda siempre dentro del marco visible. Encima solo
-   se suman las capas del fósforo: scanlines, rejilla, viñeta,
-   refresco y parpadeo. Los controles táctiles viven en las
-   bandas negras, fuera del tubo. */
+   MÍSTICAS — (C) 1987 — css/style.css
+   La carcasa del televisor. NEGRO PLANO alrededor del tubo de
+   256x240 (escalado con factor entero). Aquí no hay ni un
+   degradado, ni un brillo, ni una sombra difusa: la única
+   transparencia de todo el producto es el joystick táctil
+   flotante, expresamente translúcido por diseño.
+   ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
@@ -18,7 +17,7 @@
 
 html, body {
   height: 100%;
-  background: #000;
+  background: #000000;
   overflow: hidden;
   -webkit-user-select: none;
   user-select: none;
@@ -26,11 +25,7 @@ html, body {
   overscroll-behavior: none;
 }
 
-body {
-  background: #000;
-}
-
-/* ---- Tubo CRT: el lienzo lo posiciona main.js (letterbox 4:3).
+/* ---- el tubo: main.js lo posiciona (letterbox, factor entero).
        Este centrado flex es el respaldo si el JS no corre. ---- */
 #crt {
   position: fixed;
@@ -38,55 +33,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: #000000;
   overflow: hidden;
-  border-radius: 0;
 }
 
 canvas#game {
   display: block;
-  background: #000;
+  background: #000000;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
 
-/* ---- Capas del monitor (cubren toda la pantalla) ---- */
-#scan {
-  position: absolute; inset: 0; z-index: 3; pointer-events: none;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0px,
-    rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, .24) 2px,
-    rgba(0, 0, 0, .24) 3px
-  );
-}
-
-#grille {
-  position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .5;
-  background: repeating-linear-gradient(
-    to right,
-    rgba(255, 46, 94, .03) 0px,
-    rgba(244, 98, 210, .018) 1px,
-    rgba(142, 74, 216, .03) 2px,
-    rgba(142, 74, 216, .03) 3px
-  );
-}
-
-/* [CANON FAMICOM] Sin vignette radial, sin barra de refresco con
-   degradado y sin parpadeo alfa: solo quedan las líneas de barrido
-   (scan) y la máscara RGB (grille) — textura DURA de tubo, jamás
-   brillo moderno sobre el juego. */
-
-/* ---- Controles táctiles ----
-   Viven en el NEGRO del letterbox, FUERA del tubo: arriba PAUSA y
-   AUDIO; abajo-izquierda el JOYSTICK FLOTANTE analógico (bola
-   translúcida que se arrastra; sustituye a la cruceta) y abajo-
-   derecha FUEGO. main.js recalcula las posiciones en px tras cada
-   redimensionado midiendo el tubo real, para que jamás pisen el
-   HUD; estas reglas son el respaldo si el JS no corre.
-   Se muestran: en dispositivos táctiles (pointer: coarse),
-   tras el primer toque, o cuando el juego está en pausa. */
+/* ---- controles táctiles (planos y translúcidos) ----
+   Se muestran en dispositivos táctiles o tras el primer toque. */
 #touch {
   position: fixed; inset: 0; z-index: 10;
   display: none; pointer-events: none;
@@ -97,84 +56,51 @@ body.touch #touch { display: block; }
 }
 
 .tbtn {
-  position: absolute; width: 44px; height: 44px;
+  position: absolute;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid #7a1fd0;
-  border-radius: 10px;
-  background: rgba(46, 18, 72, .45);
-  color: #ffa8a0;
-  font-family: monospace;
-  font-size: 16px;
   pointer-events: auto;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
-  text-shadow: 0 0 6px rgba(255, 74, 42, .65);
-  backdrop-filter: blur(1px);
+  border-radius: 12px;
+  border: 2px solid #7a1fd0;
+  background: rgba(30, 12, 56, 0.5);
+  color: #f8b8f8;
+  font-family: monospace;
+  font-size: 18px;
+  font-weight: bold;
 }
 .tbtn:active, .tbtn.held {
-  background: rgba(122, 31, 208, .55);
-  color: #fff3ea;
+  background: rgba(216, 0, 204, 0.4);
+  color: #fcfcfc;
+  border-color: #f878f8;
 }
 
-/* Botones de sistema: PAUSA y AUDIO en la banda superior,
-   siempre accesibles y sin estorbar la vista */
+/* botones de sistema: banda superior */
 .tbtn.tsys {
-  width: 46px; height: 40px;
-  font-size: 17px; font-weight: bold;
+  width: 48px; height: 42px;
+  border-color: #d800cc;
+  background: rgba(24, 8, 44, 0.66);
+  color: #f8b8f8;
   letter-spacing: 1px;
-  border-color: #e8281e;
-  background: rgba(23, 11, 38, .66);
-  color: #ffa8a0;
-  text-shadow: 0 0 7px rgba(232, 40, 30, .8);
 }
 .tbtn.tsys:active, .tbtn.tsys.held {
-  background: rgba(232, 40, 30, .45);
-  color: #fff3ea;
+  background: rgba(216, 0, 204, 0.45);
+  color: #fcfcfc;
 }
-/* audio silenciado: el botón se apaga y se tacha */
 .tbtn.tsys.muted {
-  color: #5a4470;
-  text-shadow: none;
-  border-color: #5a15a0;
-  background: rgba(10, 4, 18, .66);
-}
-.tbtn.tsys.muted::after {
-  content: '';
-  position: absolute;
-  left: 8px; right: 8px; top: 50%;
-  height: 2px; margin-top: -1px;
-  background: #e8281e;
-  transform: rotate(-24deg);
+  color: #7c7c7c;
+  border-color: #5415a0;
+  background: rgba(10, 4, 18, 0.66);
 }
 
-/* Posiciones de respaldo (main.js las recalcula midiendo el tubo
-   real y los márgenes seguros de muesca) */
-#t-pause {
-  top: 6px; right: 10px;
-}
-#t-audio {
-  top: 6px; right: 64px;
-}
-
-/* ---- Joystick táctil flotante ----
-   Bola translúcida de 104 px con pomo de 44: el dedo la arrastra y
-   input.js convierte el vector a la rejilla isométrica. Al soltar,
-   el pomo vuelve al centro con una microtransición. */
+/* ---- joystick táctil flotante: bola translúcida PLANA ---- */
 #joy {
   position: absolute;
   left: 16px; bottom: 20px;
   width: 104px; height: 104px;
   border-radius: 50%;
-  border: 1px solid rgba(122, 31, 208, .5);
-  background:
-    radial-gradient(circle at 50% 42%,
-      rgba(46, 18, 72, .10),
-      rgba(23, 11, 38, .34) 62%,
-      rgba(10, 4, 18, .5) 100%);
-  box-shadow:
-    0 0 16px rgba(0, 0, 0, .55),
-    inset 0 0 22px rgba(0, 0, 0, .6),
-    inset 0 2px 8px rgba(255, 168, 160, .07);
+  border: 2px solid rgba(216, 0, 204, 0.55);
+  background: rgba(20, 8, 40, 0.35);
   pointer-events: auto;
   touch-action: none;
   -webkit-tap-highlight-color: transparent;
@@ -185,44 +111,30 @@ body.touch #touch { display: block; }
   width: 44px; height: 44px;
   margin: -22px 0 0 -22px;
   border-radius: 50%;
-  border: 1px solid rgba(255, 168, 160, .65);
-  background:
-    radial-gradient(circle at 50% 38%,
-      rgba(122, 31, 208, .60),
-      rgba(46, 18, 72, .55) 72%,
-      rgba(10, 4, 18, .7) 100%);
-  box-shadow:
-    0 3px 12px rgba(0, 0, 0, .7),
-    inset 0 1px 8px rgba(255, 168, 160, .28);
-  transition: transform .12s ease-out;
+  border: 2px solid rgba(248, 184, 248, 0.75);
+  background: rgba(148, 0, 132, 0.5);
+  transition: transform 0.1s ease-out;
 }
 #joy.live #joy-knob { transition: none; }
+#joy.live {
+  border-color: rgba(248, 120, 248, 0.9);
+}
 
-/* Botón de acción: esfera translúcida a la derecha */
-#t-fire {
+/* botón de acción: esfera translúcida plana a la derecha */
+.tbtn.tfire {
   right: 18px; bottom: 22px;
   width: 64px; height: 64px;
   border-radius: 50%;
-  border-color: rgba(232, 40, 30, .8);
-  background:
-    radial-gradient(circle at 50% 40%,
-      rgba(90, 21, 160, .35),
-      rgba(23, 11, 38, .5) 70%,
-      rgba(10, 4, 18, .66) 100%);
   font-size: 24px;
-  box-shadow: 0 0 14px rgba(0, 0, 0, .6);
+  border-color: rgba(228, 0, 88, 0.85);
+  background: rgba(90, 21, 60, 0.45);
 }
-#t-fire:active, #t-fire.held {
-  background:
-    radial-gradient(circle at 50% 40%,
-      rgba(232, 40, 30, .55),
-      rgba(90, 21, 160, .45) 75%);
-  color: #fff3ea;
+.tbtn.tfire:active, .tbtn.tfire.held {
+  background: rgba(228, 0, 88, 0.5);
+  color: #fcfcfc;
 }
 
-/* Firma de la etiqueta de la cinta: ancla el borde inferior y
-   vuelve intencional el negro bajo los controles (canon del
-   audio-novel en casete). Solo decorativa. */
+/* firma de la etiqueta de la cinta (plana, sin brillos) */
 #sig {
   position: absolute;
   left: 0; right: 0; bottom: 4px;
@@ -230,23 +142,21 @@ body.touch #touch { display: block; }
   font-family: monospace;
   font-size: 9px;
   letter-spacing: 2px;
-  color: #5a15a0;
-  opacity: .85;
-  text-shadow: 0 0 6px rgba(90, 21, 160, .45);
+  color: #5415a0;
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* Controles algo menores en pantallas pequeñas */
+/* controles algo menores en pantallas pequeñas */
 @media (max-width: 420px) {
-  .tbtn { width: 48px; height: 48px; }
+  .tbtn { font-size: 16px; }
 }
 @media (max-height: 460px) {
-  #joy { width: 80px; height: 80px; }
+  #joy { width: 84px; height: 84px; }
   #joy-knob {
-    width: 34px; height: 34px;
-    margin: -17px 0 0 -17px;
+    width: 36px; height: 36px;
+    margin: -18px 0 0 -18px;
   }
-  #t-fire { width: 52px; height: 52px; font-size: 19px; }
+  .tbtn.tfire { width: 54px; height: 54px; font-size: 20px; }
 }
