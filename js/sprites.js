@@ -1037,12 +1037,26 @@
   var Spr = {
     S: S,
 
+    /* Dibujo de sprites: PÍXEL a PÍXEL, colores planos de la
+       paleta. Cero globalAlpha: cuando un ente se desvanece
+       (la niña) se disuelve como en la NES — tramas de puntos
+       cada vez más ralas + parpadeo de fotograma, nunca
+       transparencia moderna. */
     draw: function (ctx, sp, x, y, opts) {
       opts = opts || {};
       var px = Math.round(x), py = Math.round(y);
       var flip = !!opts.flip;
-      if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
-      var rows = sp.rows, r, c, ch, col, sx;
+      var a = opts.alpha === undefined ? 1 : opts.alpha;
+      // régimen de disolución 8 bits (solo si alpha < 1)
+      var dith = 0;                       // 0 = sólido
+      if (a < 0.3) dith = 3;              // trama 25% + parpadeo
+      else if (a < 0.66) dith = 2;        // trama 50%
+      else if (a < 1) dith = 1;           // trama 75% (rincones)
+      if (dith === 3) {
+        // parpadeo de fotograma: visible solo 1 de cada 2 ticks
+        if ((Math.floor(performance.now() / 60) & 1) === 0) return;
+      }
+      var rows = sp.rows, r, c, ch, col, sx, drawPx;
       for (r = 0; r < rows.length; r++) {
         var line = rows[r];
         for (c = 0; c < line.length; c++) {
@@ -1051,22 +1065,44 @@
           if (opts.remap && opts.remap[ch]) ch = opts.remap[ch];
           col = parseInt(ch, 16);
           if (isNaN(col)) continue;
-          ctx.fillStyle = M.PAL[col];
           sx = flip ? (sp.w - 1 - c) : c;
+          drawPx = true;
+          if (dith === 2) drawPx = ((sx + r) & 1) === 0;          // tablero 50%
+          else if (dith === 3) drawPx = ((sx & 1) === 0) && ((r & 1) === 0); // 25%
+          else if (dith === 1) drawPx = !((sx & 1) === 1 && (r & 1) === 1);  // 75%
+          if (!drawPx) continue;
+          ctx.fillStyle = M.PAL[col];
           ctx.fillRect(px + sx, py + r, 1, 1);
         }
       }
-      if (opts.alpha !== undefined) ctx.globalAlpha = 1;
     },
 
-    // Sombra elíptica bajo los pies
-    shadow: function (ctx, x, y, w, alpha) {
-      ctx.globalAlpha = alpha === undefined ? 0.4 : alpha;
-      ctx.fillStyle = M.PAL[M.C.BLACK];
-      ctx.beginPath();
-      ctx.ellipse(Math.round(x), Math.round(y), w, Math.max(2, w / 2), 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+    /* Sombra bajo los pies estilo 1987: NADA de elipse difusa con
+       alpha — un charco de píxeles negros en TABLERO DE AJEDREZ
+       (la falsa transparencia del hardware real). Cacheada por
+       anchura: solo drawImage por fotograma. */
+    _shadowCache: {},
+    shadow: function (ctx, x, y, w) {
+      var key = w | 0;
+      var cv = this._shadowCache[key];
+      if (!cv) {
+        cv = document.createElement('canvas');
+        cv.width = w * 2 + 2; cv.height = w + 2;
+        var g = cv.getContext('2d');
+        g.fillStyle = M.PAL[M.C.BLACK];
+        var a = w, b = Math.max(2, w / 2);
+        var cx = cv.width / 2 - 0.5, cy = cv.height / 2 - 0.5;
+        for (var yy = 0; yy < cv.height; yy++) {
+          for (var xx = 0; xx < cv.width; xx++) {
+            var dx = (xx - cx) / a, dy = (yy - cy) / b;
+            if (dx * dx + dy * dy <= 1 && ((xx + yy) & 1) === 0) {
+              g.fillRect(xx, yy, 1, 1);
+            }
+          }
+        }
+        this._shadowCache[key] = cv;
+      }
+      ctx.drawImage(cv, Math.round(x - cv.width / 2), Math.round(y - cv.height / 2));
     }
   };
 
@@ -1081,6 +1117,70 @@
       s = (s * 1103515245 + 12345) & 0x7fffffff;
       return s / 0x7fffffff;
     };
+  }
+
+  /* ---- rasterizadores de píxel duro (cero antialiasing) ----
+     Discos, elipses, bandas de arco y trazos gruesos se pintan
+     píxel a píxel con test matemático: bordes de escalera como
+     los tiles de una cartucho real, jamás curvas suaves. */
+  function pxDisc(x, cx, cy, r, ci) {
+    x.fillStyle = M.PAL[ci];
+    var r2 = r * r;
+    for (var yy = Math.floor(cy - r); yy <= Math.ceil(cy + r); yy++) {
+      for (var xx = Math.floor(cx - r); xx <= Math.ceil(cx + r); xx++) {
+        var dx = xx - cx, dy = yy - cy;
+        if (dx * dx + dy * dy <= r2) x.fillRect(xx, yy, 1, 1);
+      }
+    }
+  }
+
+  // mitad superior de un disco (bóvedas y arcos de medio punto)
+  function pxDiscTop(x, cx, cy, r, ci) {
+    x.fillStyle = M.PAL[ci];
+    var r2 = r * r;
+    for (var yy = Math.floor(cy - r); yy <= cy; yy++) {
+      for (var xx = Math.floor(cx - r); xx <= Math.ceil(cx + r); xx++) {
+        var dx = xx - cx, dy = yy - cy;
+        if (dy <= 0 && dx * dx + dy * dy <= r2) x.fillRect(xx, yy, 1, 1);
+      }
+    }
+  }
+
+  function pxEllipse(x, cx, cy, a, b, ci) {
+    x.fillStyle = M.PAL[ci];
+    for (var yy = Math.floor(cy - b); yy <= Math.ceil(cy + b); yy++) {
+      for (var xx = Math.floor(cx - a); xx <= Math.ceil(cx + a); xx++) {
+        var dx = (xx - cx) / a, dy = (yy - cy) / b;
+        if (dx * dx + dy * dy <= 1) x.fillRect(xx, yy, 1, 1);
+      }
+    }
+  }
+
+  // banda anular (dovelas de un arco), semicírculo superior
+  function pxArcBand(x, cx, cy, r0, r1, ci, full) {
+    x.fillStyle = M.PAL[ci];
+    for (var yy = Math.floor(cy - r1); yy <= Math.ceil(cy + r1); yy++) {
+      for (var xx = Math.floor(cx - r1); xx <= Math.ceil(cx + r1); xx++) {
+        var dx = xx - cx, dy = yy - cy;
+        var d2 = dx * dx + dy * dy;
+        if (d2 >= r0 * r0 && d2 <= r1 * r1) {
+          if (!full && dy > 0) continue;      // solo mitad superior
+          x.fillRect(xx, yy, 1, 1);
+        }
+      }
+    }
+  }
+
+  // trazo grueso por pasos cuadrados (troncos nudosos)
+  function pxThick(x, x0, y0, x1, y1, w, ci) {
+    x.fillStyle = M.PAL[ci];
+    var steps = Math.max(2, Math.floor(Math.sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0))));
+    var i, px, py;
+    for (i = 0; i <= steps; i++) {
+      px = Math.round(x0 + (x1 - x0) * i / steps);
+      py = Math.round(y0 + (y1 - y0) * i / steps);
+      x.fillRect(px - Math.floor(w / 2), py - Math.floor(w / 2), w, w);
+    }
   }
 
   function branch(ctx, x, y, ang, len, w, depth, rng, tips) {
@@ -1123,20 +1223,19 @@
     branch(x, 75, 92, -Math.PI / 2 - 0.05, 22, 4, 5, rng, tips);
     branch(x, 75, 92, -Math.PI / 2 + 0.95, 18, 3, 4, rng, tips);
 
-    // follaje violeta oscuro en las puntas (copa sombría del canon)
+    // follaje violeta oscuro en las puntas (copa sombría del
+    // canon): masas circulares PÍXEL A PÍXEL, jamás arc() suave
     var i, t, r;
     for (i = 0; i < tips.length; i++) {
       t = tips[i];
       r = 4 + rng() * 4;
-      x.fillStyle = M.PAL[M.C.DARK];
-      x.beginPath(); x.arc(t.x, t.y, r, 0, Math.PI * 2); x.fill();
-      x.fillStyle = M.PAL[M.C.VDARK];
-      x.beginPath(); x.arc(t.x, t.y + r * 0.4, r * 0.7, 0, Math.PI * 2); x.fill();
+      pxDisc(x, t.x, t.y, r, M.C.DARK);
+      pxDisc(x, t.x, t.y + r * 0.4, r * 0.7, M.C.VDARK);
       x.fillStyle = M.PAL[M.C.DPURP];
       x.fillRect(Math.round(t.x - r * 0.4), Math.round(t.y - r), Math.max(2, r | 0), 1);
     }
 
-    // tronco: segmentos con leve curva
+    // tronco: segmentos con leve curva, cuadrados apilados duros
     var bx = 75, by = 126;
     var segs = [
       [ -Math.PI / 2 + 0.05, 26, 9 ],
@@ -1147,28 +1246,18 @@
     for (i = 0; i < segs.length; i++) {
       var a = segs[i][0], l = segs[i][1], w = segs[i][2];
       nx = bx + Math.cos(a) * l; ny = by + Math.sin(a) * l;
-      x.strokeStyle = M.PAL[M.C.DPURP];
-      x.lineWidth = w; x.lineCap = 'round';
-      x.beginPath(); x.moveTo(bx, by); x.lineTo(nx, ny); x.stroke();
-      x.strokeStyle = M.PAL[M.C.PURP];
-      x.lineWidth = 1;
-      x.beginPath(); x.moveTo(bx - w * 0.3, by); x.lineTo(nx - w * 0.3, ny); x.stroke();
+      pxThick(x, bx, by, nx, ny, w, M.C.DPURP);
+      pxThick(x, bx - w * 0.3, by, nx - w * 0.3, ny, 1, M.C.PURP);
       bx = nx; by = ny;
     }
     // raíces nudosas
     for (i = 0; i < 5; i++) {
       branch(x, 75, 126, Math.PI / 2 + (i - 2) * 0.38, 12 + rng() * 8, 4, 2, rng, null);
     }
-    // hueco del tronco (la puerta de "algo")
-    x.fillStyle = M.PAL[M.C.BLACK];
-    x.beginPath();
-    x.ellipse(75, 106, 6, 11, 0, 0, Math.PI * 2);
-    x.fill();
-    x.strokeStyle = M.PAL[M.C.BLOOD];
-    x.lineWidth = 1;
-    x.beginPath();
-    x.ellipse(75, 106, 6, 11, 0, 0, Math.PI * 2);
-    x.stroke();
+    // hueco del tronco (la puerta de "algo"): elipse pixelada con
+    // borde sangre de 1 px (antes era un stroke antialiased)
+    pxEllipse(x, 75, 106, 7, 12, M.C.BLOOD);
+    pxEllipse(x, 75, 106, 6, 11, M.C.BLACK);
     // frutos magenta en las puntas altas
     var fruits = tips.filter(function (tp) { return tp.y < 70; }).slice(0, 6);
     return { canvas: c, tips: fruits, ox: 75, oy: 126 };
@@ -1193,14 +1282,14 @@
     var c = document.createElement('canvas');
     c.width = 26; c.height = 26;
     var x = c.getContext('2d');
-    x.fillStyle = M.PAL[M.C.BONE];
-    x.beginPath(); x.arc(13, 13, 11, 0, Math.PI * 2); x.fill();
-    x.fillStyle = M.PAL[M.C.BONE2];
-    x.beginPath(); x.arc(9, 9, 2, 0, Math.PI * 2); x.fill();
-    x.beginPath(); x.arc(16, 15, 3, 0, Math.PI * 2); x.fill();
-    x.beginPath(); x.arc(11, 18, 1.5, 0, Math.PI * 2); x.fill();
-    x.strokeStyle = 'rgba(142,74,216,0.5)';
-    x.beginPath(); x.arc(13, 13, 12.5, 0, Math.PI * 2); x.stroke();
+    // disco hueso pixelado + cráteres planos: luna de cartucho,
+    // sin halo (el rgba del glow estaba PROHIBIDO por el canon)
+    pxDisc(x, 13, 13, 11, M.C.BONE);
+    pxDisc(x, 9, 9, 2, M.C.BONE2);
+    pxDisc(x, 16, 15, 3, M.C.BONE2);
+    pxDisc(x, 11, 18, 2, M.C.BONE2);
+    // borde 1 px negro puro (silueta nítida)
+    pxArcBand(x, 13, 13, 10.5, 11.5, M.C.BLACK, true);
     return c;
   }
 
@@ -1228,26 +1317,20 @@
     x.fillStyle = M.PAL[M.C.WHITE];
     x.fillRect(6, 13, 12, 1);
 
-    // arco: banda púrpura profundo (dovelas)
-    x.strokeStyle = M.PAL[M.C.PURP];
-    x.lineWidth = 4;
-    x.beginPath();
-    x.arc(12, 15, 8, Math.PI, Math.PI * 2); x.stroke();
+    // arco: banda de dovelas púrpura PIXELADA (banda anular
+    // superior, sin stroke antialiased)
+    pxArcBand(x, 12, 15, 5.5, 9.5, M.C.PURP, false);
     // juntas negras radiales: segmentan en dovelas
-    x.strokeStyle = M.PAL[M.C.BLACK];
-    x.lineWidth = 1;
+    x.fillStyle = M.PAL[M.C.BLACK];
     for (var a = 26; a < 180; a += 26) {
       var rad = (90 - a) * Math.PI / 180;
-      x.beginPath();
-      x.moveTo(12 + Math.cos(rad) * 5, 15 - Math.sin(rad) * 5);
-      x.lineTo(12 + Math.cos(rad) * 11, 15 - Math.sin(rad) * 11);
-      x.stroke();
+      for (var rr = 6; rr <= 10; rr++) {
+        x.fillRect(Math.round(12 + Math.cos(rad) * rr), Math.round(15 - Math.sin(rad) * rr), 1, 1);
+      }
     }
     // rim carmesí del canon: "dark purple with red rim-lighting"
-    x.strokeStyle = M.PAL[M.C.CRIM];
-    x.lineWidth = 1;
-    x.beginPath();
-    x.arc(12, 15, 9.5, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+    // (aro de píxeles rojos, no un glow)
+    pxArcBand(x, 12, 15, 9.5, 10.5, M.C.CRIM, false);
     // clave del arco (arriba): sillar salmón con brillo
     x.fillStyle = M.PAL[M.C.BLACK];
     x.fillRect(9, 3, 7, 5);
@@ -1322,24 +1405,25 @@
     x.fillRect(2, 3, 16, 1);
     x.fillRect(4, 1, 12, 1);
 
-    // hueco del arco de medio punto: violeta casi negro
+    // hueco del arco de medio punto: violeta casi negro,
+    // rasterizado por píxel (rectángulo + semicírculo)
     x.fillStyle = M.PAL[M.C.VDARK];
-    x.beginPath();
-    x.moveTo(5, 28);
-    x.lineTo(5, 15);
-    x.arc(10, 15, 5, Math.PI, 0);
-    x.lineTo(15, 28);
-    x.closePath();
-    x.fill();
-    // contorno violeta del arco
-    x.strokeStyle = M.PAL[M.C.PURP];
-    x.lineWidth = 1;
-    x.beginPath();
-    x.moveTo(5.5, 28);
-    x.lineTo(5.5, 15.5);
-    x.arc(10, 15.5, 4.5, Math.PI, 0);
-    x.lineTo(14.5, 28);
-    x.stroke();
+    var px, py;
+    for (py = 8; py < 28; py++) {
+      for (px = 5; px < 15; px++) {
+        var inside = (py >= 15) || ((px - 10) * (px - 10) + (py - 15) * (py - 15) <= 25);
+        if (inside) x.fillRect(px, py, 1, 1);
+      }
+    }
+    // contorno violeta del arco: 1 px de píxeles, no stroke
+    x.fillStyle = M.PAL[M.C.PURP];
+    for (py = 8; py < 28; py++) {
+      for (px = 4; px < 16; px++) {
+        var d2 = (px - 10) * (px - 10) + (py - 15) * (py - 15);
+        var inside2 = (py >= 15) ? (px === 4 || px === 15) : (d2 >= 25 && d2 <= 36);
+        if (inside2 && py > 9) x.fillRect(px, py, 1, 1);
+      }
+    }
     // hoja de la puerta entreabierta
     x.fillStyle = M.PAL[M.C.DPURP];
     x.fillRect(8, 13, 4, 15);
@@ -1361,34 +1445,32 @@
     c.width = 26; c.height = 34;
     var x = c.getContext('2d');
 
-    // hueco del pasaje: negro absoluto con lejanía violeta
+    // hueco del pasaje: negro absoluto con lejanía violeta,
+    // rasterizado píxel a píxel (rectángulo + semicírculo)
     x.fillStyle = M.PAL[M.C.BLACK];
-    x.beginPath();
-    x.moveTo(6, 32); x.lineTo(6, 14);
-    x.arc(13, 14, 7, Math.PI, 0);
-    x.lineTo(20, 32); x.closePath(); x.fill();
+    var px, py;
+    for (py = 4; py < 32; py++) {
+      for (px = 6; px < 20; px++) {
+        var inside = (py >= 14) || ((px - 13) * (px - 13) + (py - 14) * (py - 14) <= 49);
+        if (inside) x.fillRect(px, py, 1, 1);
+      }
+    }
     x.fillStyle = M.PAL[M.C.VDARK];
     x.fillRect(9, 24, 8, 8);
     x.fillStyle = M.PAL[M.C.DPURP];
     x.fillRect(11, 27, 4, 5);
 
-    // dovelas del arco: banda púrpura profundo con juntas radiales
-    x.strokeStyle = M.PAL[M.C.PURP];
-    x.lineWidth = 4;
-    x.beginPath(); x.arc(13, 14, 9, Math.PI, Math.PI * 2); x.stroke();
-    x.strokeStyle = M.PAL[M.C.BLACK];
-    x.lineWidth = 1;
+    // dovelas del arco: banda anular púrpura PIXELADA con juntas
+    pxArcBand(x, 13, 14, 6.5, 10.5, M.C.PURP, false);
+    x.fillStyle = M.PAL[M.C.BLACK];
     for (var a = 22; a < 180; a += 22) {
       var rad = (90 - a) * Math.PI / 180;
-      x.beginPath();
-      x.moveTo(13 + Math.cos(rad) * 6, 14 - Math.sin(rad) * 6);
-      x.lineTo(13 + Math.cos(rad) * 12, 14 - Math.sin(rad) * 12);
-      x.stroke();
+      for (var rr = 7; rr <= 11; rr++) {
+        x.fillRect(Math.round(13 + Math.cos(rad) * rr), Math.round(14 - Math.sin(rad) * rr), 1, 1);
+      }
     }
-    // rim carmesí: acento hipervibrante del pasaje
-    x.strokeStyle = M.PAL[M.C.CRIM];
-    x.lineWidth = 1;
-    x.beginPath(); x.arc(13, 14, 10.5, Math.PI * 1.1, Math.PI * 1.9); x.stroke();
+    // rim carmesí: acento hipervibrante del pasaje (píxel, no glow)
+    pxArcBand(x, 13, 14, 10.5, 11.5, M.C.CRIM, false);
 
     // jambas salmón a los lados (canon: marco vivo)
     x.fillStyle = M.PAL[M.C.BLACK];
@@ -1417,6 +1499,26 @@
   Spr.buildStairs = buildStairs;
   Spr.buildDoor = buildDoor;
   Spr.buildGate = buildGate;
+
+  /* Arquitectura por NIVEL DE LUZ: la NES no atenuaba con alpha,
+     cambiaba el banco de paleta del tile. Aquí cada elemento de
+     arquitectura (puerta, portón, arco, escalera) se hornea una
+     vez por nivel (0..3) con la tabla de sustitución PALSWAP, y
+     el mundo pinta el que toque: junto a una vela la puerta
+     "salta" a su banco iluminado, en la sombra al bank oscuro. */
+  var BUILDERS = { arch: buildArch, stairs: buildStairs, door: buildDoor, gate: buildGate };
+  Spr._levelCanvases = {};
+  Spr.canvasFor = function (name, level) {
+    var bank = this._levelCanvases[name];
+    if (!bank) { bank = this._levelCanvases[name] = [null, null, null, null]; }
+    level = level === undefined ? 2 : level;
+    if (!bank[level]) {
+      bank[level] = M.withPalette(M.PALSWAP[level], function () {
+        return BUILDERS[name]();
+      });
+    }
+    return bank[level];
+  };
 
   // La cara: destello de 2 fotogramas en pantallas de título/pasillos
   Spr.drawFace = function (ctx, cx, cy) {

@@ -102,6 +102,50 @@ window.MISTICAS = window.MISTICAS || {};
     return ((h ^ (h >> 16)) >>> 0) / 4294967295;
   };
 
+  /* ============================================================
+     REGISTROS DE PALETA POR NIVEL DE LUZ (estilo PPU de la NES)
+     El chip gráfico de 1987 no sabía mezclar colores: una vela
+     "iluminaba" cambiando DIRECTAMENTE el registro de color de
+     los tiles contiguos. Aquí cada nivel de luz es una tabla de
+     sustitución índice→índice sobre la paleta de 16 colores:
+       nivel 3 = TORCIDO POR LA LUZ (bloque junto a la llama:
+                 las masas saltan a violeta vivo y las aristas a
+                 blanco puro — el "cambio de registro" del canon)
+       nivel 2 = NORMAL (paleta tal cual)
+       nivel 1 = PENUMBRA (cada color cae dos rangos)
+       nivel 0 = OSCURIDAD (siluetas: todo colapsa a violeta
+                 casi negro y negro mortero)
+     NUNCA alpha, NUNCA degradados: solo colores planos que se
+     sustituyen de golpe, tesela a tesela.
+     ============================================================ */
+  M.PALSWAP = [
+    /* 0 OSCURIDAD */ [0, 1, 1, 1, 1, 2, 2, 4, 2, 15, 10, 11, 13, 1, 13, 1],
+    /* 1 PENUMBRA  */ [0, 1, 1, 2, 2, 3, 4, 6, 15, 8, 10, 11, 13, 4, 12, 2],
+    /* 2 NORMAL    */ [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    /* 3 LIT       */ [0, 3, 5, 6, 5, 7, 7, 14, 9, 9, 10, 11, 14, 7, 14, 8]
+  ];
+
+  // Aplica una tabla de sustitución SOLO durante fn: respalda
+  // M.PAL, la intercambia en sitio, ejecuta y restaura. Así los
+  // constructores de canvas (puertas, arcos…) se "hornear" por
+  // nivel de luz exactamente como la NES horneaba sus tiles con
+  // cada banco de paleta.
+  M.withPalette = function (swap, fn) {
+    var backup = M.PAL.slice();
+    for (var i = 0; i < 16; i++) M.PAL[i] = backup[swap[i]];
+    try { return fn(); }
+    finally { for (var j = 0; j < 16; j++) M.PAL[j] = backup[j]; }
+  };
+
+  // Remapa hexadecimal (carácter→carácter) para Spr.draw: convierte
+  // la tabla de nivel en el diccionario que usan los sprites.
+  M.remapFor = function (level) {
+    var sw = M.PALSWAP[level];
+    var rm = {};
+    for (var i = 0; i < 16; i++) rm[i.toString(16).toUpperCase()] = sw[i].toString(16).toUpperCase();
+    return rm;
+  };
+
   M.clamp = function (v, a, b) { return v < a ? a : (v > b ? b : v); };
   M.lerp = function (a, b, t) { return a + (b - a) * t; };
   M.dist = function (ax, ay, bx, by) {

@@ -73,41 +73,10 @@ canvas#game {
   );
 }
 
-#vig {
-  position: absolute; inset: 0; z-index: 5; pointer-events: none;
-  background: radial-gradient(ellipse at center,
-    rgba(0, 0, 0, 0) 64%,
-    rgba(5, 0, 10, .12) 86%,
-    rgba(0, 0, 0, .34) 100%);
-}
-
-/* Barra de refresco vertical que desciende lentamente */
-#roll {
-  position: absolute; left: 0; right: 0; height: 16%; z-index: 4;
-  pointer-events: none;
-  background: linear-gradient(to bottom,
-    rgba(185, 140, 255, 0) 0%,
-    rgba(185, 140, 255, .05) 50%,
-    rgba(185, 140, 255, 0) 100%);
-  animation: roll 9.5s linear infinite;
-}
-@keyframes roll { from { top: -22%; } to { top: 112%; } }
-
-/* Parpadeo sutil del fósforo */
-#flick {
-  position: absolute; inset: 0; z-index: 6; pointer-events: none;
-  background: #fff; opacity: 0;
-  animation: flick 7.3s infinite steps(1);
-}
-@keyframes flick {
-  0%, 100% { opacity: 0; }
-  6%  { opacity: .015; } 7%  { opacity: 0; }
-  23% { opacity: .028; } 24% { opacity: 0; }
-  41% { opacity: .012; } 42% { opacity: 0; }
-  63% { opacity: .03;  } 64% { opacity: 0; }
-  81% { opacity: .018; } 82% { opacity: 0; }
-  93% { opacity: .024; } 94% { opacity: 0; }
-}
+/* [CANON FAMICOM] Sin vignette radial, sin barra de refresco con
+   degradado y sin parpadeo alfa: solo quedan las líneas de barrido
+   (scan) y la máscara RGB (grille) — textura DURA de tubo, jamás
+   brillo moderno sobre el juego. */
 
 /* ---- Controles táctiles ----
    Viven en el NEGRO del letterbox, FUERA del tubo: arriba PAUSA y

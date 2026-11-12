@@ -18,19 +18,24 @@
     }
   })();
 
-  // niebla pre-renderizada
-  function buildFog(seed, w, h) {
+  /* NIEBLA 8 BIT: nada de elipses rgba translúcidas — bandas de
+     PUNTOS SÓLIDOS en trama (tablero/escalonada) que derivan a
+     distintas velocidades. La falsa niebla de la NES era esto:
+     píxeles de paleta alternados, jamás alpha. Se pre-renderiza
+     una vez por patrón y se pega con drawImage. */
+  function buildFogTile(w, h, color, dense) {
     var c = document.createElement('canvas');
     c.width = w; c.height = h;
     var x = c.getContext('2d');
-    var s = seed;
-    function rnd() { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; }
-    x.fillStyle = 'rgba(62,21,104,0.55)';
-    for (var i = 0; i < 9; i++) {
-      var ex = rnd() * w, ey = h * 0.4 + rnd() * h * 0.6, er = 18 + rnd() * 30;
-      x.beginPath();
-      x.ellipse(ex, ey, er, er * 0.38, 0, 0, Math.PI * 2);
-      x.fill();
+    x.fillStyle = M.PAL[color];
+    var rows = Math.floor(h / 2);
+    for (var r = 0; r < rows; r++) {
+      var y = r * 2;
+      // densidad escalonada: más puntos abajo (la niebla asienta)
+      var step = (r > rows * 0.55) ? (dense ? 2 : 3) : (dense ? 3 : 4);
+      for (var px = 0; px < w; px += step) {
+        x.fillRect(px + ((r + px) & 1), y, 1, 1);
+      }
     }
     return c;
   }
@@ -48,9 +53,27 @@
 
     init: function () {
       if (!this.fogA) {
-        this.fogA = buildFog(31, 170, 44);
-        this.fogB = buildFog(77, 220, 52);
+        this.fogA = buildFogTile(84, 22, M.C.VDARK, true);
+        this.fogB = buildFogTile(120, 28, M.C.DARK, false);
       }
+      if (!this._dithers) this._buildDithers();
+    },
+
+    // Tramas de fundido (25/50/75%): el fade de la NES era por
+    // PASOS de paleta con trama — aquí negro sólido tramado
+    _buildDithers: function () {
+      function dither(n) {   // n = 1,2,3 de 4 píxeles encendidos
+        var c = document.createElement('canvas');
+        c.width = 2; c.height = 2;
+        var g = c.getContext('2d');
+        g.fillStyle = '#000000';
+        if (n === 1) g.fillRect(0, 0, 1, 1);                    // 25%
+        else if (n === 2) { g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1); } // 50%
+        else { g.fillRect(0, 0, 1, 1); g.fillRect(1, 0, 1, 1); g.fillRect(0, 1, 1, 1); } // 75%
+        return c;
+      }
+      this._dithers = [dither(1), dither(2), dither(3)];
+      this._ditherPat = [null, null, null];   // patrones perezosos
     },
 
     fadeTo: function (target, speed, cb) {
@@ -72,8 +95,9 @@
 
     flashNow: function (color, alpha, dur) {
       this.flashColor = color;
-      this.flashA = alpha;
+      this.flashA = alpha;      // (compat: los escalones no usan alpha)
       this.flashT = dur || 0.18;
+      this._flashDur = this.flashT;
     },
 
     lightning: function () {
@@ -161,24 +185,39 @@
 
     _band: function () { /* (reservado) */ },
 
-    /* ---------- niebla en dos capas ---------- */
+    /* ---------- niebla en dos capas de puntos sólidos ---------- */
     drawFog: function (ctx, t, density, camX) {
       if (density <= 0) return;
-      var y1 = M.VIEW_H - 58, y2 = M.VIEW_H - 34;
-      var x1 = -((t * 6 + camX * 0.25) % 200) - 100;
-      var x2 = -((t * 3.2 + camX * 0.4) % 260) - 130;
-      ctx.globalAlpha = 0.35 * density;
-      for (var i = 0; i < 3; i++) {
-        ctx.drawImage(this.fogA, Math.round(x1 + i * 190), y1);
+      var y1 = M.VIEW_H - 56, y2 = M.VIEW_H - 32;
+      var W = M.SCREEN_W;
+      // capas DISCRETAS según densidad (cero mezcla alpha)
+      var layers = density >= 0.8 ? 3 : (density >= 0.4 ? 2 : 1);
+      var i, x1, x2;
+      var draws = [
+        { img: this.fogB, y: y1, sp: 3.2, ph: 40 },
+        { img: this.fogA, y: y2, sp: 6.0, ph: 0 },
+        { img: this.fogB, y: y2 - 12, sp: 9.0, ph: 70 }
+      ];
+      for (i = 0; i < layers; i++) {
+        var d = draws[i];
+        var tw = d.img.width;
+        var off = Math.floor((t * d.sp + camX * 0.3 + d.ph) % tw);
+        for (x1 = -off - tw; x1 < W + tw; x1 += tw) {
+          ctx.drawImage(d.img, Math.round(x1), d.y);
+        }
       }
-      ctx.globalAlpha = 0.45 * density;
-      for (var j = 0; j < 3; j++) {
-        ctx.drawImage(this.fogB, Math.round(x2 + j * 240), y2);
+      // franja tramada a ras del suelo: la niebla que "muerde"
+      if (layers >= 2) {
+        ctx.fillStyle = M.PAL[M.C.VDARK];
+        var yb = M.VIEW_H - 8;
+        for (x2 = 0; x2 < W; x2 += 2) {
+          ctx.fillRect(x2 + (Math.floor(t * 5) & 1), yb, 1, 1);
+          ctx.fillRect(x2 + 1 - (Math.floor(t * 5) & 1), yb + 2, 1, 1);
+        }
       }
-      ctx.globalAlpha = 1;
     },
 
-    /* ---------- ruido estático ---------- */
+    /* ---------- ruido estático (puntos sólidos de paleta) ---------- */
     drawStatic: function (ctx, amount) {
       if (amount <= 0) return;
       var W = M.SCREEN_W;
@@ -186,10 +225,8 @@
       for (var i = 0; i < n; i++) {
         var c = Math.random();
         ctx.fillStyle = M.PAL[c > 0.7 ? M.C.LMAG : (c > 0.4 ? M.C.PURP : M.C.BONE2)];
-        ctx.globalAlpha = 0.25 + Math.random() * 0.4;
         ctx.fillRect(Math.floor(Math.random() * W), Math.floor(Math.random() * M.VIEW_H), 1 + (c > 0.92 ? 2 : 0), 1);
       }
-      ctx.globalAlpha = 1;
     },
 
     /* ---------- bandas de carga de casete (bordes) ---------- */
@@ -243,29 +280,41 @@
         }
         var blocks = Math.floor(p * 5);
         for (i = 0; i < blocks; i++) {
-          ctx.globalAlpha = 0.5 + Math.random() * 0.4;
           ctx.fillStyle = M.PAL[[M.C.BLACK, M.C.MAG, M.C.LCRIM, M.C.VDARK][Math.floor(Math.random() * 4)]];
           ctx.fillRect(Math.floor(Math.random() * W), Math.floor(Math.random() * H),
             4 + Math.floor(Math.random() * 26), 2 + Math.floor(Math.random() * 4));
         }
-        ctx.globalAlpha = 1;
         // línea de barrido rota
         ctx.fillStyle = M.PAL[M.C.LMAG];
         ctx.fillRect(0, Math.floor(Math.random() * H), W, 1);
       }
-      // destello (relámpago)
+      // destello (relámpago) EN ESCALONES SÓLIDOS: blanco puro
+      // un par de fotogramas, tono apagado el resto — sin alpha
       if (this.flashT > 0) {
-        ctx.globalAlpha = Math.min(0.75, this.flashA * (this.flashT * 6));
-        ctx.fillStyle = M.PAL[this.flashColor];
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = 1;
+        var elapsed = (this._flashDur || 0.18) - this.flashT;
+        if (elapsed < 0.07) {
+          ctx.fillStyle = M.PAL[this.flashColor];
+        } else if (elapsed < 0.12) {
+          ctx.fillStyle = M.PAL[this.flashColor === M.C.WHITE ? M.C.BONE : M.C.CRIM];
+        } else {
+          ctx.fillStyle = null;
+        }
+        if (ctx.fillStyle) ctx.fillRect(0, 0, W, H);
       }
-      // fundido a negro
+      // fundido a negro POR TRAMAS (el fade de paleta de 8 bits:
+      // 25% → 50% → 75% → negro sólido, sin mezcla alpha)
       if (this.fade > 0.001) {
-        ctx.globalAlpha = this.fade;
-        ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = 1;
+        if (this.fade >= 0.875) {
+          ctx.fillStyle = M.PAL[M.C.BLACK];
+          ctx.fillRect(0, 0, W, H);
+        } else {
+          var step = this.fade >= 0.625 ? 2 : (this.fade >= 0.375 ? 1 : 0);
+          if (!this._ditherPat[step]) {
+            this._ditherPat[step] = ctx.createPattern(this._dithers[step], 'repeat');
+          }
+          ctx.fillStyle = this._ditherPat[step];
+          ctx.fillRect(0, 0, W, H);
+        }
       }
     }
   };

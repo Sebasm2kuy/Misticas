@@ -3,6 +3,13 @@
    MÍSTICAS — (C) 1987 — iso.js
    Motor isométrico: mapa de teselas 16x8, conversión de
    coordenadas, orden pintor, colisiones y cámara.
+
+   RASTERIZADOR DE TESELAS 100% PÍXEL DURO (canon Famicom/NES):
+   cada suelo y cada muro se construye PÍXEL A PÍXEL (fillRect
+   1x1 sobre columnas/scanlines enteras) en un bitmap offscreen,
+   igual que los tiles de la cartucho real. Cero trazos con
+   antialiasing, cero curvas suaves: solo bloques de color plano
+   con junta negra de mortero y aristas de escalera 2:1.
    ============================================================ */
 (function (M) {
 
@@ -90,156 +97,38 @@
              this.isSolid(map, gx - r, gy + r) || this.isSolid(map, gx + r, gy + r);
     },
 
-    /* ---------- dibujo de teselas ----------
-       ESTÁNDAR FAMICOM/NES: masa sólida de piedra + junta negra
-       de mortero + luz escasa. Nada de rejillas geométricas: el
-       suelo se lee como ADOQUÍN compacto porque cada losa es un
-       trozo de masa violeta oscura separado por sombra (negro),
-       no una línea brillante sobre vacío. La luz (salmón) solo
-       salta en contadas losas. Exterior = pradera/ tierra con
-       matas y hoyos; interior = losas pavimentadas con junta;
-       camino = tierra más clara, pisada. Sin degradados. */
+    /* ============================================================
+       RASTERIZACIÓN DE TESELAS (píxel duro, estilo tile-NES)
+       El rombo 16x8 se llena por SCANLINES de escalera 2:1 que
+       teselan SIN huecos NI solapes (verificado: cada píxel del
+       plano pertenece a exactamente una tesela). Nada de paths
+       con antialiasing: solo columnas y filas de fillRect.
+       ============================================================ */
 
-    // junta de mortero: aristas SE + SW del diamante en negro
-    // (la sombra de la losa sobre la siguiente: adoquín macizo)
-    _joint: function (ctx, sx, sy) {
-      ctx.strokeStyle = M.PAL[M.C.BLACK];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(sx + TW - 0.5, sy + HH);
-      ctx.lineTo(sx + HW, sy + TH - 0.5);
-      ctx.lineTo(sx + 0.5, sy + HH);
-      ctx.stroke();
-    },
+    // scanlines del rombo: [xIzq, ancho] por fila y=0..7
+    DIAMOND: [[7, 2], [5, 6], [3, 10], [1, 14], [1, 14], [3, 10], [5, 6], [7, 2]],
 
-    // dab: detalle de 1-2 px (mata, hoyo, guijarro) determinista
-    _dab: function (ctx, sx, sy, gx, gy, color, w, h) {
-      ctx.fillStyle = M.PAL[color];
-      ctx.fillRect(sx + 4 + Math.floor(M.hash(gx, gy) * 8),
-                   sy + 2 + Math.floor(M.hash(gy, gx) * 4), w || 1, h || 1);
-    },
-
-    _diamond: function (ctx, sx, sy, color) {
-      ctx.fillStyle = M.PAL[color];
-      ctx.beginPath();
-      ctx.moveTo(sx + HW, sy);
-      ctx.lineTo(sx + TW, sy + HH);
-      ctx.lineTo(sx + HW, sy + TH);
-      ctx.lineTo(sx, sy + HH);
-      ctx.closePath();
-      ctx.fill();
-    },
-
-    _diamondOutline: function (ctx, sx, sy, color) {
-      ctx.strokeStyle = M.PAL[color];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(sx + HW, sy + 0.5);
-      ctx.lineTo(sx + TW - 0.5, sy + HH);
-      ctx.lineTo(sx + HW, sy + TH - 0.5);
-      ctx.lineTo(sx + 0.5, sy + HH);
-      ctx.closePath();
-      ctx.stroke();
-    },
-
-    // arista superior-izquierda iluminada (rosa salmón)
-    _litEdge: function (ctx, sx, sy) {
-      ctx.fillStyle = M.PAL[M.C.LMAG];
-      ctx.fillRect(sx + HW - 3, sy + 1, 4, 1);
-      ctx.fillRect(sx + 2, sy + 2, 3, 1);
-    },
-
-    // puntito de textura violeta disperso (determinista)
-    _speck: function (ctx, sx, sy, gx, gy, color) {
-      ctx.fillStyle = M.PAL[color];
-      ctx.fillRect(sx + 4 + Math.floor(M.hash(gx, gy) * 8), sy + 2 + Math.floor((M.hash(gy, gx) * 4) % 4), 1, 1);
-    },
-
-    drawFloorTile: function (ctx, type, sx, sy, gx, gy) {
-      var hv = M.hash(gx, gy);
-      switch (type) {
-        case 'grass':
-          // pradera nocturna: masa violeta compacta, aclarada a
-          // trechos por la luna; matas, hoyos y alguna chispa
-          this._diamond(ctx, sx, sy, (hv < 0.22) ? M.C.DARK : M.C.VDARK);
-          if (hv > 0.40 && hv < 0.58) this._dab(ctx, sx, sy, gx, gy, M.C.DARK, 1, 2);
-          if (hv > 0.58 && hv < 0.72) this._dab(ctx, sx, sy, gx + 3, gy + 5, M.C.DARK, 2, 1);
-          if (hv < 0.10) this._dab(ctx, sx, sy, gy, gx, M.C.BLACK, 2, 1);
-          if (hv > 0.93 && hv < 0.97) this._dab(ctx, sx, sy, gx + 1, gy + 2, M.C.DPURP, 1, 1);
-          if (hv > 0.97) this._litEdge(ctx, sx, sy);
-          break;
-        case 'path':
-          // sendero pisado: tierra más clara que la hierba, junta
-          // de adoquín hundido y guijarros de hueso
-          this._diamond(ctx, sx, sy, M.C.DARK);
-          this._joint(ctx, sx, sy);
-          if (hv < 0.25) this._dab(ctx, sx, sy, gx, gy, M.C.VDARK, 2, 2);
-          if (hv > 0.55 && hv < 0.78) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
-          if (hv > 0.86) this._dab(ctx, sx, sy, gx + 5, gy + 1, M.C.BONE2, 1, 1);
-          if (hv > 0.95) this._litEdge(ctx, sx, sy);
-          break;
-        case 'dirt':
-          // campo santo: tierra violácea con tumulillos y huesos
-          this._diamond(ctx, sx, sy, (hv < 0.16) ? M.C.DARK : M.C.VDARK);
-          if (hv > 0.45 && hv < 0.62) {
-            this._dab(ctx, sx, sy, gx, gy, M.C.DARK, 2, 1);
-            this._dab(ctx, sx, sy, gy, gx, M.C.BLACK, 1, 1);
-          }
-          if (hv < 0.09) this._dab(ctx, sx, sy, gx, gy, M.C.BLACK, 2, 1);
-          if (hv > 0.80 && hv < 0.90) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
-          if (hv > 0.96) this._litEdge(ctx, sx, sy);
-          break;
-        case 'stone':
-          // claustro del convento: losas de piedra maciza con junta
-          // negra de mortero, alguna losa más clara, grietas y astillas
-          this._diamond(ctx, sx, sy, (hv < 0.16) ? M.C.DARK : M.C.VDARK);
-          this._joint(ctx, sx, sy);
-          if (hv > 0.50 && hv < 0.66) this._dab(ctx, sx, sy, gx, gy, M.C.BLACK, 1, 1);
-          if (hv > 0.86 && hv < 0.93) this._dab(ctx, sx, sy, gx, gy, M.C.BONE2, 1, 1);
-          if (hv > 0.95) this._litEdge(ctx, sx, sy);
-          break;
-        case 'carpet':
-          // alfombra del canon del video: felpa CARMESÍ con borde
-          // negro a ambos lados (la alfombra roja de la sala);
-          // brillo salmón ocasional como reflejo de las velas
-          this._diamond(ctx, sx, sy, M.C.CRIM);
-          // filete negro NW+SE (borde de la alfombra)
-          ctx.strokeStyle = M.PAL[M.C.BLACK];
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(sx + HW, sy + 0.5);
-          ctx.lineTo(sx + 0.5, sy + HH);
-          ctx.moveTo(sx + TW - 0.5, sy + HH);
-          ctx.lineTo(sx + HW, sy + TH - 0.5);
-          ctx.stroke();
-          this._joint(ctx, sx, sy);
-          if ((gx * 3 + gy * 5) % 7 === 0) {
-            ctx.fillStyle = M.PAL[M.C.LMAG];
-            ctx.fillRect(sx + 6, sy + 3, 4, 1);
-          }
-          break;
-        case 'checker':
-          // SUELO DAMERO del canon: rombos alternos #6D28D9 /
-          // #1E0B26 con junta negra fina (la sala del video)
-          this._diamond(ctx, sx, sy, ((gx + gy) % 2 === 0) ? M.C.DPURP : M.C.VDARK);
-          this._joint(ctx, sx, sy);
-          if (hv > 0.96) this._litEdge(ctx, sx, sy);
-          break;
-        default:
-          this._diamond(ctx, sx, sy, M.C.VDARK);
-          this._joint(ctx, sx, sy);
+    // borde del rombo por dirección (píxel extremo de cada fila):
+    // NW=filas 0-3 izq | NE=filas 0-3 der | SE=filas 4-7 der | SW=filas 4-7 izq
+    _edgePx: function (mask) {
+      var px = [];
+      var D = this.DIAMOND;
+      var r, xL, xR;
+      for (r = 0; r < 8; r++) {
+        xL = D[r][0]; xR = xL + D[r][1] - 1;
+        if ((mask & 1) && r < 4) px.push([xL, r]);          // NW
+        if ((mask & 2) && r < 4) px.push([xR, r]);          // NE
+        if ((mask & 4) && r >= 4) px.push([xR, r]);         // SE
+        if ((mask & 8) && r >= 4) px.push([xL, r]);         // SW
       }
+      return px;
     },
 
-    /* Bloque isométrico (muro) de altura hh px.
-       RÉPLICA EXACTA del metraje: dos familias de ladrillo.
-       - 'red' (nave del convento, la sala del video): cara SO en
-         marrón ladrillo #8E1B12, cara SE en carmín #D93025, sillar
-         encendido salmón y tapa carmín con filete salmón completo
-         (el "roof lip" del canon). Mortero negro 1-2px.
-       - 'violet' (criptas y exteriores, familia del pasillo del
-         video): cara SO casi negra, cara SE violeta, tapa púrpura
-         profundo. Todo en aparejo corrido con junta negra. */
+    /* Familias de ladrillo del canon (índices de paleta):
+       - 'red'   (nave del convento): cara SO marrón ladrillo,
+         cara SE carmín, tapa carmín con filete salmón completo.
+       - 'violet' (criptas y exteriores): SO casi negro, SE
+         violeta, tapa púrpura profundo. */
     WALL_FAM: {
       red: {
         so: { mass: 15, swap: 0, hot: 8 },   // sombra: marrón, swap negro, brillo carmín
@@ -253,116 +142,168 @@
       }
     },
 
-    drawWall: function (ctx, sx, sy, hh, family) {
+    _floorCache: {},
+    _wallCache: {},
+
+    /* Hornea el bitmap 16x8 de un suelo. type + variante posicional
+       (masa clara/oscura, damero par/impar) + nivel de luz (tabla
+       de sustitución de paleta) + máscara de bordillo (junta negra
+       junto a muros). TODO píxel duro. */
+    bakeFloor: function (type, level, mask, variant) {
+      var key = type + '|' + level + '|' + (mask || 0) + '|' + (variant || 0);
+      if (this._floorCache[key]) return this._floorCache[key];
+      var pal = this._pal(level);
+      var c = document.createElement('canvas');
+      c.width = TW; c.height = TH;
+      var x = c.getContext('2d');
+      var D = this.DIAMOND;
+      var r, i, xL, w;
+
+      // masa principal del rombo (color plano según tipo/variante)
+      var mass = M.C.VDARK;
+      if (type === 'grass' || type === 'dirt' || type === 'stone') {
+        mass = variant ? M.C.DARK : M.C.VDARK;
+      } else if (type === 'path') {
+        mass = M.C.DARK;
+      } else if (type === 'carpet') {
+        mass = M.C.CRIM;
+      } else if (type === 'checker') {
+        mass = variant ? M.C.VDARK : M.C.DPURP;
+      }
+      for (r = 0; r < 8; r++) {
+        xL = D[r][0]; w = D[r][1];
+        x.fillStyle = pal[mass];
+        x.fillRect(xL, r, w, 1);
+      }
+
+      // juntas estructurales (mortero negro en escalera 2:1):
+      // SE+SW en camino/piedra/damero; la alfombra añade el filete
+      // NW de su borde (el filo carmesí del canon)
+      if (type === 'path' || type === 'stone' || type === 'checker' || type === 'carpet') {
+        this._pxJoint(x, pal);
+      }
+      if (type === 'carpet') {
+        x.fillStyle = pal[M.C.BLACK];
+        for (r = 0; r < 4; r++) x.fillRect(D[r][0], r, 1, 1);   // filete NW
+      }
+
+      // bordillo negro junto a muros/límites (grout del canon)
+      if (mask) {
+        var edge = this._edgePx(mask);
+        x.fillStyle = pal[M.C.BLACK];
+        for (i = 0; i < edge.length; i++) x.fillRect(edge[i][0], edge[i][1], 1, 1);
+      }
+
+      this._floorCache[key] = c;
+      return c;
+    },
+
+    // junta de mortero SE+SW del rombo en píxel duro (escalera 2:1)
+    _pxJoint: function (x, pal) {
+      x.fillStyle = pal[M.C.BLACK];
+      var r;
+      // arista SE: filas 3..7, píxel derecho de cada fila (14,12,10,8)
+      for (r = 3; r < 8; r++) {
+        var D = this.DIAMOND[r];
+        x.fillRect(D[0] + D[1] - 1, r, 1, 1);
+      }
+      // arista SW: filas 4..7, píxel izquierdo (1,3,5,7)
+      for (r = 4; r < 8; r++) {
+        x.fillRect(this.DIAMOND[r][0], r, 1, 1);
+      }
+    },
+
+    // paleta sustituida por nivel de luz (los "registros" de la PPU)
+    _pal: function (level) {
+      var sw = M.PALSWAP[level === undefined ? 2 : level];
+      var p = [];
+      for (var i = 0; i < 16; i++) p[i] = M.PAL[sw[i]];
+      return p;
+    },
+
+    /* Hornea el bitmap de un muro isométrico de altura hh px:
+       dos caras de sillares en aparejo corrido + tapa con filete.
+       Cada píxel se decide por columna (escalera 2:1 coherente
+       con el rombo del suelo): masa plana, mortero negro 1px,
+       sillares encendidos y contorno negro de silueta. */
+    bakeWall: function (hh, family, level, variant) {
+      hh = hh || 13;
+      variant = variant || 0;
+      var key = family + '|' + hh + '|' + level + '|' + variant;
+      if (this._wallCache[key]) return this._wallCache[key];
       var fam = this.WALL_FAM[family] || this.WALL_FAM.violet;
-      var self = this;
+      var pal = this._pal(level);
+      var c = document.createElement('canvas');
+      c.width = TW; c.height = hh + TH;
+      var x = c.getContext('2d');
+      // origen local: y=0 es el vértice superior de la tapa;
+      // la base del muro (fila 7 del rombo) cae en y = hh+7
+      var BH = 5, BW = 10;
 
-      function face(poly, ox, oy, tone) {
-        // cara: masa sólida de ladrillo (clip al paralelogramo)
-        ctx.save();
-        ctx.beginPath();
-        for (var i = 0; i < poly.length; i++) {
-          if (i === 0) ctx.moveTo(poly[i][0] + sx, poly[i][1] + sy);
-          else ctx.lineTo(poly[i][0] + sx, poly[i][1] + sy);
-        }
-        ctx.closePath();
-        ctx.clip();
-        ctx.fillStyle = M.PAL[tone.mass];
-        ctx.fillRect(sx - 2, sy - hh - 6, TW + 4, hh + TH + 8);
+      // columnas de las caras: SO x1..7, SE x8..14 (con yBase en
+      // píxel exclusivo), coherentes con las scanlines del suelo
+      var soBot = [0, 5, 5, 6, 6, 7, 7, 8];   // índice = x (0..7)
+      var seBot = [0, 0, 0, 0, 0, 0, 0, 0, 8, 7, 7, 6, 6, 5, 5, 0]; // índice = x (8..14)
 
-        // sillares en aparejo corrido: junta negra de mortero sobre
-        // la masa, cuerpos intercambiados y aristas encendidas
-        var top = sy + oy, bot = sy + oy - hh;
-        var BH = 5;                  // alto de la hilada
-        var BW = 10;                 // ancho del sillar
-        var row = 0, y0, x0, x1, jx;
-        for (y0 = top - 1; y0 > bot; y0 -= BH, row++) {
-          var off = (row % 2) ? 0 : BW / 2;
-          for (jx = ox - BW + off; jx < ox + TW + BW; jx += BW) {
-            x0 = Math.max(sx + jx + 1, sx - 2);
-            x1 = Math.min(sx + jx + BW - 1, sx + TW + 2);
-            if (x1 <= x0) continue;
-            var y1 = Math.max(y0 - BH + 1, bot - 2);
-            var hsh = M.hash(Math.floor(sx + jx), Math.floor(y0) + row * 31);
-            if (hsh < 0.13) {
-              // sillar sombra/luz: el ladrillo contrario
-              ctx.fillStyle = M.PAL[tone.swap];
-              ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
-            } else if (hsh > 0.93) {
-              // sillar encendido: cuerpo vivo y arista salmón
-              ctx.fillStyle = M.PAL[tone.hot];
-              ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
-              ctx.fillStyle = M.PAL[M.C.LMAG];
-              ctx.fillRect(x0, y1, Math.min(4, x1 - x0), 1);
-            }
-            // junta negra de mortero alrededor del sillar
-            ctx.strokeStyle = M.PAL[M.C.BLACK];
-            ctx.lineWidth = 1;
-            ctx.strokeRect(x0 - 0.5, y1 - 0.5, x1 - x0 + 1, y0 - y1 + 1);
+      var col, y, yTop, yBot, d, band, wy, off, wx, hsh, tone, isSo;
+      for (col = 1; col <= 14; col++) {
+        isSo = col <= 7;
+        yBot = (isSo ? soBot[col] : seBot[col]) + hh;
+        yTop = yBot - hh;
+        for (y = yTop; y < yBot; y++) {
+          d = yBot - 1 - y;               // profundidad desde la base
+          // contorno de silueta: base y laterales en negro puro
+          if (d === 0 || col === 1 || col === 14) {
+            x.fillStyle = pal[M.C.BLACK];
+            x.fillRect(col, y, 1, 1);
+            continue;
           }
+          band = Math.floor(d / BH);
+          wy = d % BH;
+          off = (band % 2) * (BW / 2);
+          wx = (col + off) % BW;
+          tone = isSo ? fam.so : fam.se;
+          if (wy === BH - 1 || wx === 0) {
+            // junta de mortero negra alrededor del sillar
+            x.fillStyle = pal[M.C.BLACK];
+          } else {
+            hsh = M.hash(col * 31 + band * 7 + variant * 131 + (isSo ? 0 : 57),
+                         band * 17 + col + variant * 3);
+            if (hsh < 0.13) {
+              x.fillStyle = pal[tone.swap];       // sillar contrario
+            } else if (hsh > 0.93) {
+              // sillar encendido: cuerpo vivo + arista salmón arriba
+              x.fillStyle = (wy === 0) ? pal[M.C.LMAG] : pal[tone.hot];
+            } else {
+              x.fillStyle = pal[tone.mass];
+            }
+          }
+          x.fillRect(col, y, 1, 1);
         }
-        ctx.restore();
       }
 
-      // cara izquierda (SO): sombra — cara derecha (SE): luz;
-      // el contraste entre ambas da el volumen Famicom del canon
-      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH, fam.so);
-      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH, fam.se);
-
-      // tapa plana (canon: "roof lip")
-      ctx.fillStyle = M.PAL[fam.cap];
-      ctx.beginPath();
-      ctx.moveTo(sx + HW, sy - hh);
-      ctx.lineTo(sx + TW, sy + HH - hh);
-      ctx.lineTo(sx + HW, sy + TH - hh);
-      ctx.lineTo(sx, sy + HH - hh);
-      ctx.closePath(); ctx.fill();
-      // contorno negro grueso de la silueta (canon)
-      ctx.strokeStyle = M.PAL[M.C.BLACK];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(sx, sy + HH);
-      ctx.lineTo(sx, sy + HH - hh);
-      ctx.lineTo(sx + HW, sy - hh);
-      ctx.lineTo(sx + TW, sy + HH - hh);
-      ctx.lineTo(sx + TW, sy + HH);
-      ctx.lineTo(sx + HW, sy + TH);
-      ctx.closePath(); ctx.stroke();
-      // filete del borde superior: en la familia roja, TODO el
-      // contorno de la tapa se enciende en salmón (roof lip del
-      // canon); en violeta solo la arista superior
-      ctx.strokeStyle = M.PAL[M.C.LMAG];
-      ctx.beginPath();
-      ctx.moveTo(sx + HW + 1, sy - hh + 1);
-      ctx.lineTo(sx + 1, sy + HH - hh + 1);
-      if (fam.capEdgeAll) {
-        ctx.lineTo(sx + 1, sy + HH - hh + 1);
+      // tapa (diamante plano en lo alto) con filete del canon
+      var D = this.DIAMOND;
+      var r, xL, w, xR;
+      for (r = 0; r < 8; r++) {
+        xL = D[r][0]; w = D[r][1]; xR = xL + w - 1;
+        for (var cx = xL; cx <= xR; cx++) {
+          if (cx === xL || cx === xR) {
+            x.fillStyle = pal[M.C.BLACK];        // contorno de la tapa
+          } else if (cx === xL + 1 || cx === xR - 1) {
+            x.fillStyle = pal[M.C.LMAG];         // filete salmón (roof lip)
+          } else {
+            x.fillStyle = pal[fam.cap];
+          }
+          x.fillRect(cx, r, 1, 1);
+        }
       }
-      ctx.lineTo(sx + HW, sy + TH - hh + 1);
-      ctx.lineTo(sx + TW - 1, sy + HH - hh + 1);
-      ctx.lineTo(sx + HW + 1, sy - hh + 1);
-      ctx.stroke();
+
+      this._wallCache[key] = c;
+      return c;
     },
 
-    /* Aristas del diamante de una tesela (borde del área caminable).
-       mask: bit 1 = NW, 2 = NE, 4 = SE, 8 = SW. Canon: bordillo en
-       magenta OSCURO solo donde la losa delimita con muro o límite
-       del mapa (nunca una banda brillante que compita con la piedra). */
-    drawFloorEdge: function (ctx, sx, sy, mask) {
-      if (!mask) return;
-      // canon del video: la junta junto al muro es NEGRA (grout),
-      // nunca una banda de color que compita con la piedra
-      ctx.strokeStyle = M.PAL[M.C.BLACK];
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      if (mask & 1) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + 0.5, sy + HH); }
-      if (mask & 2) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + TW - 0.5, sy + HH); }
-      if (mask & 4) { ctx.moveTo(sx + TW - 0.5, sy + HH); ctx.lineTo(sx + HW, sy + TH - 0.5); }
-      if (mask & 8) { ctx.moveTo(sx + 0.5, sy + HH); ctx.lineTo(sx + HW, sy + TH - 0.5); }
-      ctx.stroke();
-    },
-
-    // tesela vecina (null = fuera del mapa: también cierra el borde)
+    /* Tesela vecina (null = fuera del mapa: también cierra el borde) */
     edgeMask: function (map, gx, gy) {
       var m = 0;
       var tN = this.tileAt(map, gx, gy - 1);
@@ -381,7 +322,6 @@
       var x0 = cam.x - TW, x1 = cam.x + vw + TW;
       var y0 = cam.y - 60, y1 = cam.y + vh + TH + 30;
       var cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-      // radio en unidades de rejilla suficiente para cubrir la vista
       var rad = Math.ceil((x1 - x0) / HW / 2) + 3;
       var cc = this.screenToWorld(cx, cy);
       var gx0 = Math.max(0, Math.floor(cc.x - rad)), gx1 = Math.min(map.w - 1, Math.ceil(cc.x + rad));
@@ -411,10 +351,11 @@
     /* ============================================================
        HABITACIONES FIJAS TIPO DIORAMA
        Cada escena es UNA sala cerrada que flota en el vacío negro.
-       La sala entera (cimiento, suelo, zócalo-pedestal y muros) se
-       pre-renderiza UNA sola vez a un canvas offscreen: el bucle de
-       juego solo lo copia y dibuja encima las entidades vivas.
-       Cero recálculo de teselas por fotograma = cero lag.
+       Se pre-renderiza UNA sola vez la BASE (cimiento + zócalo
+       pedestal) con la paleta ambiental de la sala; los suelos y
+       muros son TILES horneados por nivel de luz que el bucle
+       compone cada fotograma — el mismo modelo nametable+paleta
+       de la NES, a 60 fps estables.
        ============================================================ */
 
     // Marco completo de la sala en coords de pantalla-mundo:
@@ -441,125 +382,106 @@
       };
     },
 
-    // cara del zócalo: pedestal macizo bajo el borde de la sala
-    _plinth: function (g, a, b) {
+    // cara del zócalo: pedestal macizo bajo el borde de la sala,
+    // rasterizado por columnas (masa violeta, sombra inferior de
+    // 2 px negros, contorno negro y arista superior salmón)
+    _plinthPx: function (g, pal, a, b) {
       var D = 7;
-      // masa violeta oscura
-      g.fillStyle = M.PAL[M.C.DARK];
-      g.beginPath();
-      g.moveTo(a.x, a.y); g.lineTo(b.x, b.y);
-      g.lineTo(b.x, b.y + D); g.lineTo(a.x, a.y + D);
-      g.closePath(); g.fill();
-      // sombra inferior profunda (2 px negros)
-      g.fillStyle = M.PAL[M.C.BLACK];
-      g.beginPath();
-      g.moveTo(a.x, a.y + D - 2); g.lineTo(b.x, b.y + D - 2);
-      g.lineTo(b.x, b.y + D); g.lineTo(a.x, a.y + D);
-      g.closePath(); g.fill();
-      // contorno negro de la silueta
-      g.strokeStyle = M.PAL[M.C.BLACK];
-      g.lineWidth = 1;
-      g.beginPath();
-      g.moveTo(a.x + 0.5, a.y); g.lineTo(b.x + 0.5, b.y);
-      g.lineTo(b.x + 0.5, b.y + D); g.lineTo(a.x + 0.5, a.y + D);
-      g.closePath(); g.stroke();
-      // arista superior iluminada (canon salmón)
-      g.strokeStyle = M.PAL[M.C.LMAG];
-      g.beginPath();
-      g.moveTo(a.x, a.y + 0.5); g.lineTo(b.x, b.y + 0.5);
-      g.stroke();
+      var x0 = Math.round(Math.min(a.x, b.x));
+      var x1 = Math.round(Math.max(a.x, b.x));
+      var dx = b.x - a.x;
+      var col, yt, y;
+      for (col = x0; col < x1; col++) {
+        yt = Math.round(a.y + (b.y - a.y) * ((col - a.x) / (dx || 1)));
+        for (y = 0; y < D; y++) {
+          if (col === x0 || col === x1 - 1 || y === 0 || y >= D - 2) {
+            g.fillStyle = (y === 0) ? pal[M.C.LMAG] : pal[M.C.BLACK];
+          } else {
+            g.fillStyle = pal[M.C.DARK];
+          }
+          g.fillRect(col, yt + y, 1, 1);
+        }
+      }
     },
 
-    /* Pre-renderiza la sala estática completa. Devuelve
-       { canvas, frame } — el canvas ya lleva cimiento + suelo +
-       bordillos + zócalo + muros. Las capas de deco se hornean vía
-       callbacks para intercalarlas con los muros por profundidad:
-       opts.flat(g, toS)  → decos planos (cráneos, huesos) bajo muros
-       opts.walls(items)  → añade {d, fn} de puertas/portones a la
-                            lista de muros (orden pintor conjunto) */
-    renderRoom: function (map, opts) {
-      opts = opts || {};
+    /* Base pre-renderizada de la sala: cimiento (rombo macizo de
+       la huella) + zócalo frontal. ambient = nivel de paleta con
+       que se hornea (2 normal; 1 penumbra en salas oscuras). */
+    renderRoomBase: function (map, ambient) {
+      var pal = this._pal(ambient === undefined ? 2 : ambient);
       var f = this.roomFrame(map);
       var c = document.createElement('canvas');
       c.width = Math.ceil(f.w);
       c.height = Math.ceil(f.h);
       var g = c.getContext('2d');
-      g.translate(-f.x, -f.y);
-      g.imageSmoothingEnabled = false;
-      var self = this;
-      function toS(gx, gy) {
-        var s = self.worldToScreen(gx, gy);
-        return { x: s.x + HW, y: s.y + HH };
-      }
+      g.translate(-Math.round(f.x), -Math.round(f.y));
 
-      // 1) cimiento: rombo macizo de la huella completa (los muros
-      //    se asientan sobre él: jamás quedan rendijas al vacío)
-      g.fillStyle = M.PAL[M.C.VDARK];
-      g.beginPath();
-      g.moveTo(f.N.x, f.N.y);
-      g.lineTo(f.E.x, f.E.y);
-      g.lineTo(f.S.x, f.S.y);
-      g.lineTo(f.W.x, f.W.y);
-      g.closePath(); g.fill();
+      // 1) cimiento: rombo macizo por scanlines (colores planos)
+      var yMin = Math.floor(Math.min(f.N.y, f.W.y, f.E.y));
+      var yMax = Math.ceil(f.S.y);
+      var y, t, xL, xR;
+      g.fillStyle = pal[M.C.VDARK];
+      for (y = yMin; y < yMax; y++) {
+        xL = null;
+        if (y <= f.W.y) {
+          t = (y - f.N.y) / ((f.W.y - f.N.y) || 1);
+          xL = f.N.x + (f.W.x - f.N.x) * t;
+        } else {
+          t = (y - f.W.y) / ((f.S.y - f.W.y) || 1);
+          xL = f.W.x + (f.S.x - f.W.x) * t;
+        }
+        if (y <= f.E.y) {
+          t = (y - f.N.y) / ((f.E.y - f.N.y) || 1);
+          xR = f.N.x + (f.E.x - f.N.x) * t;
+        } else {
+          t = (y - f.E.y) / ((f.S.y - f.E.y) || 1);
+          xR = f.E.x + (f.S.x - f.E.x) * t;
+        }
+        var xa = Math.round(xL), xb = Math.round(xR);
+        if (xb > xa) g.fillRect(xa, y, xb - xa, 1);
+      }
 
       // 2) zócalo frontal: el pedestal del diorama
-      this._plinth(g, f.E, f.S);
-      this._plinth(g, f.S, f.W);
+      this._plinthPx(g, pal, f.E, f.S);
+      this._plinthPx(g, pal, f.S, f.W);
 
-      // 3) suelo completo de la sala (UNA sola vez, nunca por frame)
-      var gx, gy, t, s;
-      for (gy = 0; gy < map.h; gy++) {
-        for (gx = 0; gx < map.w; gx++) {
-          t = map.cells[gy][gx];
-          if (t && t.floor) {
-            s = this.worldToScreen(gx, gy);
-            this.drawFloorTile(g, t.floor, s.x, s.y, gx, gy);
-          }
-        }
-      }
+      return { canvas: c, frame: f };
+    },
 
-      // 4) bordillos del área caminable (junto a muros y bordes)
-      for (gy = 0; gy < map.h; gy++) {
-        for (gx = 0; gx < map.w; gx++) {
-          t = map.cells[gy][gx];
-          if (t && t.floor) {
-            s = this.worldToScreen(gx, gy);
-            var mask = this.edgeMask(map, gx, gy);
-            if (mask) this.drawFloorEdge(g, s.x, s.y, mask);
-          }
-        }
-      }
-
-      // 5) decos planos (cráneos, huesos) sobre el suelo, bajo muros
-      if (opts.flat) opts.flat(g, toS);
-
-      // 6) muros en orden pintor; los decos de muro (puertas,
-      //    portones) van SIEMPRE en una segunda pasada encima:
-      //    están MONTADOS sobre las caras frontales de los muros y
-      //    ningún sillar vecino debe taparlos. La familia de
-      //    ladrillo la fija cada sala ('red' | 'violet')
+    /* Lista ordenada (orden pintor) de las teselas de la sala:
+       {d, gx, gy, kind:'floor'|'wall', ...}. Los suelos llevan
+       type/variant/mask; los muros hh/family/variant y su deco
+       montada (door/gate/sconce) si la leyenda lo indica. */
+    roomTiles: function (map) {
       var fam = (map.def && map.def.family) || 'violet';
       var items = [];
+      var gy, gx, t;
       for (gy = 0; gy < map.h; gy++) {
         for (gx = 0; gx < map.w; gx++) {
           t = map.cells[gy][gx];
-          if (t && t.block === 'wall') {
-            (function (gx2, gy2, hh) {
-              items.push({ d: gx2 + gy2, fn: function () {
-                var s2 = self.worldToScreen(gx2, gy2);
-                self.drawWall(g, s2.x, s2.y, hh, fam);
-              }});
-            })(gx, gy, t.hh || 13);
+          if (!t) continue;
+          var hv = M.hash(gx, gy);
+          if (t.floor) {
+            var variant = 0;
+            if (t.floor === 'checker') variant = (gx + gy) % 2;
+            else if (t.floor === 'grass' || t.floor === 'dirt' || t.floor === 'stone') variant = hv < 0.22 ? 1 : 0;
+            items.push({
+              d: gx + gy, gx: gx, gy: gy, kind: 'floor',
+              floor: t.floor, variant: variant,
+              mask: this.edgeMask(map, gx, gy),
+              deco: t.deco || null
+            });
+          } else if (t.block === 'wall') {
+            items.push({
+              d: gx + gy, gx: gx, gy: gy, kind: 'wall',
+              hh: t.hh || 13, family: fam,
+              variant: Math.floor(hv * 3), deco: t.deco || null
+            });
           }
         }
       }
       items.sort(function (a, b) { return a.d - b.d; });
-      for (var i = 0; i < items.length; i++) items[i].fn();
-
-      // 6b) segunda pasada: puertas y portones sobre los muros
-      if (opts.walls) opts.walls(g, toS);
-
-      return { canvas: c, frame: f };
+      return items;
     }
   };
 

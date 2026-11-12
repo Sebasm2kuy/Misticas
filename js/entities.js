@@ -58,7 +58,7 @@
 
   Player.prototype.draw = function (ctx, sx, sy) {
     var sp = this.sprite();
-    Spr.shadow(ctx, sx, sy + 1, 5, 0.45 * this.alpha);
+    Spr.shadow(ctx, sx, sy + 1, 5);
     Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.dir === 'E', alpha: this.alpha });
   };
 
@@ -155,7 +155,7 @@
       sp = prof ? S.girlW_idle : S.girlS_idle;
     }
     this.movingAnim = false;
-    Spr.shadow(ctx, sx, sy + 1, 5, 0.3 * this.alpha);
+    Spr.shadow(ctx, sx, sy + 1, 5);
     Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.facing === 'E', alpha: this.alpha });
   };
 
@@ -292,8 +292,81 @@
 
   Sister.prototype.draw = function (ctx, sx, sy) {
     var sp = this.sprite();
-    Spr.shadow(ctx, sx, sy + 1, 6, 0.5);
+    Spr.shadow(ctx, sx, sy + 1, 6);
     Spr.draw(ctx, sp, sx - sp.w / 2, sy + 2 - sp.h, { flip: this.facing.x > 0.3 && Math.abs(this.facing.x) > Math.abs(this.facing.y) });
+  };
+
+  /* Cono de visión estilo 1987: NADA de polígono translúcido —
+     la NES falseaba la transparencia con TRAMA de tablero de
+     ajedrez. El cono se hornea por dirección (24 casillas) y
+     estado (normal/alerta) en un canvas cacheado, rasterizado
+     píxel a píxel: puntos carmesí en tablero 50% + borde duro. */
+  var CONE_CACHE = {};
+  Sister.prototype._coneSprite = function (bucket, alert) {
+    var key = bucket + (alert ? 'A' : 'N');
+    if (CONE_CACHE[key]) return CONE_CACHE[key];
+    var baseA = bucket * Math.PI * 2 / 24;
+    var pts = [];
+    var steps = 9, i;
+    for (i = 0; i <= steps; i++) {
+      var a = baseA - this.coneHalf + (this.coneHalf * 2 * i / steps);
+      // mundo→pantalla isométrico (forma independiente de posición)
+      pts.push({
+        x: (Math.cos(a) - Math.sin(a)) * this.coneR * M.TILE_HW,
+        y: (Math.cos(a) + Math.sin(a)) * this.coneR * M.TILE_HH
+      });
+    }
+    // caja contenedora del abanico
+    var minX = 0, maxX = 0, minY = 0, maxY = 0;
+    for (i = 0; i < pts.length; i++) {
+      if (pts[i].x < minX) minX = pts[i].x;
+      if (pts[i].x > maxX) maxX = pts[i].x;
+      if (pts[i].y < minY) minY = pts[i].y;
+      if (pts[i].y > maxY) maxY = pts[i].y;
+    }
+    var W = Math.ceil(maxX - minX) + 2, H = Math.ceil(maxY - minY) + 2;
+    var c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    var g = c.getContext('2d');
+    var col = alert ? M.C.LCRIM : M.C.CRIM;
+    g.fillStyle = M.PAL[col];
+    // relleno tramado: punto dentro del polígono (origen en (0,0)
+    // desplazado a (-minX+1, -minY+1)) y tablero 50%
+    var ox = -minX + 1, oy = -minY + 1;
+    var poly = [{ x: ox, y: oy }];
+    for (i = 0; i < pts.length; i++) poly.push({ x: pts[i].x + ox, y: pts[i].y + oy + 4 });
+    function inPoly(px, py) {
+      var inside = false, j, k;
+      for (j = 0, k = poly.length - 1; j < poly.length; k = j++) {
+        if (((poly[j].y > py) !== (poly[k].y > py)) &&
+            (px < (poly[k].x - poly[j].x) * (py - poly[j].y) / (poly[k].y - poly[j].y) + poly[j].x)) {
+          inside = !inside;
+        }
+      }
+      return inside;
+    }
+    var xx, yy;
+    for (yy = 0; yy < H; yy++) {
+      for (xx = 0; xx < W; xx++) {
+        if (((xx + yy) & 1) === 0 && inPoly(xx + 0.5, yy + 0.5)) {
+          g.fillRect(xx, yy, 1, 1);
+        }
+      }
+    }
+    // borde duro: los dos radios del abanico en píxel sólido
+    function pxLine(x0, y0, x1, y1) {
+      var n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)), t2;
+      for (t2 = 0; t2 <= n; t2++) {
+        g.fillRect(Math.round(x0 + (x1 - x0) * t2 / (n || 1)),
+                   Math.round(y0 + (y1 - y0) * t2 / (n || 1)), 1, 1);
+      }
+    }
+    pxLine(ox, oy, poly[1].x, poly[1].y);
+    pxLine(ox, oy, poly[poly.length - 1].x, poly[poly.length - 1].y);
+
+    var spr = { canvas: c, ox: ox, oy: oy };
+    CONE_CACHE[key] = spr;
+    return spr;
   };
 
   // cono de visión proyectado a la pantalla isométrica
@@ -301,35 +374,10 @@
     if (!this.active) return;
     var alert = this.state === 'alert';
     var baseA = Math.atan2(this.facing.y, this.facing.x);
-    var pts = [];
+    var bucket = Math.round(((baseA + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * 24) % 24;
+    var spr = this._coneSprite(bucket, alert);
     var o = toScreen(this.gx, this.gy);
-    pts.push({ x: o.x, y: o.y - 10 });
-    var steps = 9;
-    for (var i = 0; i <= steps; i++) {
-      var a = baseA - this.coneHalf + (this.coneHalf * 2 * i / steps);
-      var px = this.gx + Math.cos(a) * this.coneR;
-      var py = this.gy + Math.sin(a) * this.coneR;
-      var s = toScreen(px, py);
-      pts.push({ x: s.x, y: s.y - 6 });
-    }
-    ctx.globalAlpha = alert ? 0.34 : (0.2 + Math.random() * 0.05);
-    ctx.fillStyle = M.PAL[alert ? M.C.LCRIM : M.C.CRIM];
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (var j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x, pts[j].y);
-    ctx.closePath();
-    ctx.fill();
-    // borde del cono
-    ctx.globalAlpha = alert ? 0.6 : 0.5;
-    ctx.strokeStyle = M.PAL[alert ? M.C.LCRIM : M.C.CRIM];
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    ctx.lineTo(pts[1].x, pts[1].y);
-    ctx.moveTo(pts[0].x, pts[0].y);
-    ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    ctx.drawImage(spr.canvas, Math.round(o.x - spr.ox), Math.round(o.y - 10 - spr.oy));
   };
 
   /* ============ objetos menores ============ */

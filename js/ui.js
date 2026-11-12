@@ -184,12 +184,14 @@
       ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(bx + 2, by + 2, bw - 4, 1);
-      var a = h.t < 0.25 ? h.t / 0.25 : (h.t > h.dur - 0.5 ? Math.max(0, (h.dur - h.t) / 0.5) : 1);
-      ctx.globalAlpha = a;
-      for (var i = 0; i < lines.length; i++) {
-        F.draw(ctx, lines[i], bx + 8, by + 8 + i * 10, M.C.BONE2);
+      // aparición de cartucho: SOLIDA, con parpadeo final en
+      // lugar de un fundido alpha (los textos de 1987 parpadeaban)
+      var blinkOut = h.t > h.dur - 0.5 && (Math.floor(h.t * 8) % 2 === 0);
+      if (!blinkOut) {
+        for (var i = 0; i < lines.length; i++) {
+          F.draw(ctx, lines[i], bx + 8, by + 8 + i * 10, M.C.BONE2);
+        }
       }
-      ctx.globalAlpha = 1;
     },
 
     /* ---------- HUD inferior (canon exacto de las capturas reales) ----------
@@ -337,12 +339,11 @@
     /* Lema latino diagonal (canon de la cámara isométrica): dos líneas
        rojas inclinadas y temblorosas en la esquina superior izquierda
        del mundo. Se muestra al llegar al interior del convento,
-       nunca en el cementerio ni en el cielo. */
+       nunca en el cementerio ni en el cielo. SÓLIDO: rojo de
+       paleta, sin velo alpha. */
     drawMotto: function (ctx) {
-      ctx.globalAlpha = 0.8;
       this._diagonal(ctx, 'VT COR SANCTAE ATTINGAS,', 12, 14);
       this._diagonal(ctx, 'EIVS OCULIS SPECTA', 30, 42);
-      ctx.globalAlpha = 1;
     },
 
     _diagonal: function (ctx, text, x, y) {

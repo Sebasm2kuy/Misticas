@@ -87,7 +87,7 @@
           var tp = tr.tips[i];
           if (Math.sin(t * (1.3 + i * 0.4) + i * 2) > 0.35) {
             ctx.fillStyle = M.PAL[M.C.MAG];
-            ctx.fillRect(treeX + tp.x, y(118) - 112 + tp.y, 1, 1);
+            ctx.fillRect(Math.round(treeX + tp.x), Math.round(y(118) - 112 + tp.y), 1, 1);
           }
         }
 
@@ -102,9 +102,13 @@
         ctx.fillRect(0, y(62), 110, y(56));         // cuerpo
         ctx.fillRect(26, y(34), 40, y(30));      // torre
         ctx.fillStyle = M.PAL[M.C.DPURP];
-        ctx.beginPath();                              // tejado
-        ctx.moveTo(20, y(36)); ctx.lineTo(46, y(20)); ctx.lineTo(72, y(36));
-        ctx.closePath(); ctx.fill();
+        // tejado TRIÁNGULO por scanlines (píxel duro, sin path AA)
+        var rTop = y(20), rBot = y(36), apexX = 46, halfW = 26;
+        for (var ry = rTop; ry < rBot; ry++) {
+          var f = (ry - rTop) / Math.max(1, (rBot - rTop));
+          var hw = Math.round(halfW * f);
+          ctx.fillRect(apexX - hw, ry, hw * 2, 1);
+        }
         ctx.fillStyle = M.PAL[M.C.BONE2];              // cruz
         ctx.fillRect(45, y(10), 2, y(9));
         ctx.fillRect(42, y(13), 8, 2);

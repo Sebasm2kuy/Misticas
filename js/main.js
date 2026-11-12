@@ -34,11 +34,13 @@
         // posiciones proporcionales a la resolución real del lienzo
         function y(v) { return Math.round(v * H / 200); }
         if (this.t < 3.2) {
-          ctx.globalAlpha = 0.72 + Math.sin(this.t * 5) * 0.28;
-          F.drawCenteredFit(ctx, 'CONTINUARA...', W / 2, y(74), M.C.BONE, {
-            scale: 2, spacing: 4, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, jitter: 1
-          });
-          ctx.globalAlpha = 1;
+          // parpadeo de fotograma (cero alpha): el texto late
+          // encendiéndose y apagándose, como en 1987
+          if (Math.sin(this.t * 5) > -0.35) {
+            F.drawCenteredFit(ctx, 'CONTINUARA...', W / 2, y(74), M.C.BONE, {
+              scale: 2, spacing: 4, shadow: M.C.DPURP, shadowDx: 2, shadowDy: 2, jitter: 1
+            });
+          }
           F.drawCenteredFit(ctx, 'MISTICAS - ' + M.VERSION, W / 2, y(108), M.C.BONE2);
         } else {
           var st = game.state;
@@ -525,15 +527,28 @@
       if (M.UI.card) M.UI.drawCard(ctx);
 
       if (this.paused) {
-        ctx.globalAlpha = 0.75;
-        ctx.fillStyle = M.PAL[M.C.BLACK];
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalAlpha = 1;
+        // PAUSA de cartucho: panel negro SÓLIDO con marco (nada
+        // de velo translúcido sobre el mundo)
         var cy = Math.round(M.VIEW_H / 2);
-        F.drawCenteredFit(ctx, 'PAUSA', W / 2, cy - 12, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
+        var pw = 236, ph = 74;
+        var pxl = Math.round(W / 2 - pw / 2), pyl = cy - 40;
+        ctx.fillStyle = M.PAL[M.C.BLACK];
+        ctx.fillRect(pxl, pyl, pw, ph);
+        ctx.fillStyle = M.PAL[M.C.VDARK];
+        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, ph - 4);
+        ctx.fillStyle = M.PAL[M.C.BLACK];
+        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, 1);
+        // marco doble: salmón fuera, púrpura dentro (píxel a píxel)
+        ctx.fillStyle = M.PAL[M.C.LMAG];
+        ctx.fillRect(pxl, pyl, pw, 1); ctx.fillRect(pxl, pyl + ph - 1, pw, 1);
+        ctx.fillRect(pxl, pyl, 1, ph); ctx.fillRect(pxl + pw - 1, pyl, 1, ph);
+        ctx.fillStyle = M.PAL[M.C.PURP];
+        ctx.fillRect(pxl + 2, pyl + 2, pw - 4, 1); ctx.fillRect(pxl + 2, pyl + ph - 3, pw - 4, 1);
+        ctx.fillRect(pxl + 2, pyl + 2, 1, ph - 4); ctx.fillRect(pxl + pw - 3, pyl + 2, 1, ph - 4);
+        F.drawCenteredFit(ctx, 'PAUSA', W / 2, cy - 16, M.C.LMAG, { scale: 2, shadow: M.C.PURP, shadowDx: 2, shadowDy: 2 });
         var touchMode = document.body.classList.contains('touch');
-        F.drawCenteredFit(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, cy + 14, M.C.BONE2);
-        F.drawCenteredFit(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, cy + 28, M.C.CRIM);
+        F.drawCenteredFit(ctx, touchMode ? 'TOCA II O LA PANTALLA PARA SEGUIR' : 'P: CONTINUAR - M: SILENCIO', W / 2, cy + 10, M.C.BONE2);
+        F.drawCenteredFit(ctx, touchMode ? 'EL BOTON ♪ SILENCIA EL AUDIO' : '', W / 2, cy + 24, M.C.CRIM);
       }
     }
   };
