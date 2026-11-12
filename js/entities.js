@@ -30,16 +30,24 @@
     if (this.pose !== 'hide' && (ax.x !== 0 || ax.y !== 0)) {
       var nx = this.gx + ax.x * SPEED * dt;
       var ny = this.gy + ax.y * SPEED * dt;
-      if (!world.room.collidesBox(nx, this.gy, 0.3, 0.22)) this.gx = nx;
-      if (!world.room.collidesBox(this.gx, ny, 0.3, 0.22)) this.gy = ny;
-      this.moving = true;
-      this.pose = 'walk';
-      this.animT += dt;
-      this.stepT -= dt;
-      if (this.stepT <= 0) { this.stepT = 0.26; M.Audio.sfx.step(); }
-      // dirección dominante
+      var moved = false;
+      if (!world.room.collidesBox(nx, this.gy, 0.3, 0.22)) { this.gx = nx; moved = true; }
+      if (!world.room.collidesBox(this.gx, ny, 0.3, 0.22)) { this.gy = ny; moved = true; }
+      // dirección dominante: gira aunque empuje contra un muro
       if (Math.abs(ax.x) > Math.abs(ax.y)) this.dir = ax.x > 0 ? 'right' : 'left';
       else this.dir = ax.y > 0 ? 'down' : 'up';
+      // solo "camina" (pose y pasos) si de verdad se desplazó:
+      // bloqueado en ambas direcciones = gira pero queda de pie
+      if (moved) {
+        this.moving = true;
+        this.pose = 'walk';
+        this.animT += dt;
+        this.stepT -= dt;
+        if (this.stepT <= 0) { this.stepT = 0.26; M.Audio.sfx.step(); }
+      } else {
+        this.moving = false;
+        this.pose = 'stand';
+      }
     } else if (this.pose !== 'hide') {
       this.pose = 'stand';
     }
@@ -377,7 +385,33 @@
     this.interactables = [];
     this.doorOpen = false;
     this.doorProp = null;
+
+    // blindaje del cartucho: si el punto de aparición cayera
+    // dentro de un sólido (árbol, muro, lápida...), se recoloca
+    // en espiral a la casilla libre más cercana. Ninguna escena
+    // puede volver a nacer atrapada.
+    this._unstick();
   }
+
+  // caja del jugador (semiancho/alto en teselas), igual que Player
+  WorldScene.prototype._unstick = function () {
+    var HW = 0.3, HH = 0.22;
+    var P = this.player;
+    if (!this.room.collidesBox(P.gx, P.gy, HW, HH)) return;
+    var bx = Math.floor(P.gx), by = Math.floor(P.gy);
+    for (var r = 1; r <= 10; r++) {
+      for (var dy = -r; dy <= r; dy++) {
+        for (var dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; // solo el anillo r
+          var nx = bx + dx + 0.5, ny = by + dy + 0.5;
+          if (!this.room.collidesBox(nx, ny, HW, HH)) {
+            P.gx = nx; P.gy = ny;
+            return;
+          }
+        }
+      }
+    }
+  };
 
   WorldScene.prototype.update = function (dt, game) {
     this.time += dt;

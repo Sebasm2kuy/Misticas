@@ -235,7 +235,9 @@
         ],
         lights: []
       },
-      playerStart: { x: 6, y: 17 },
+      // al pie del tronco pero FUERA del bloque solido 4x4 del
+      // arbol (tx 3-6, ty 15-18): casilla (7,17) libre
+      playerStart: { x: 7.5, y: 17.5 },
       girl: {
         x: 19, y: 13, startState: 'hidden',
         waypoints: [{ x: 17, y: 11 }, { x: 22, y: 11 }, { x: 22, y: 9 }]
