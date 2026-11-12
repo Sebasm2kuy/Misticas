@@ -19,27 +19,30 @@
     var skipIntro = !!opts.skipIntro;
 
     var world = new M.WorldScene({
-      darkness: 0.62,
+      darkness: 0.52,
       static: 0.03,
       mapDef: {
-        // 13x16 — nave: muro alto N (puerta 'd' en gx=8, apliques)
-        // y O; frente abierto al zócalo. Alfombra central hasta la
-        // escalera de entrada; columnata y arcos flanqueándola.
+        // 13x16 — nave RÉPLICA de la sala del video: muro ROJO
+        // (family 'red'), suelo DAMERO violeta, alfombra carmesí de
+        // TRES teselas de ancho (gx 7-9) desde la puerta del norte,
+        // columnata y arcos flanqueándola, fila de sillas a media
+        // sala y estanterías junto al muro oeste.
+        family: 'red',
         rows: [
           '###s####d##s#',
-          '#.......c....',
-          '#.......c....',
-          '#.e...a.c.a..',
-          '#.......c....',
-          's...C...c..C.',
-          '#.......c....',
-          '#.......c....',
-          '#.b.....c....',
-          '#...C...c..C.',
-          's.......c....',
-          '#.......c....',
-          '#...C...c..C.',
-          '#.e.....c....',
+          '#......ccc...',
+          '#......ccc...',
+          '#.a....ccc.a.',
+          '#......ccc...',
+          's...C..ccc.C.',
+          '#.h.h..ccc.hh',
+          '#......ccc...',
+          '#.b....ccc...',
+          '#...C..ccc.C.',
+          's......ccc...',
+          '#......ccc...',
+          '#...C..ccc.C.',
+          '#.e....ccc...',
           '#.......S....',
           '.............'
         ],
@@ -47,14 +50,15 @@
           '#': { floor: null, solid: true, block: 'wall', hh: 20 },
           's': { floor: null, solid: true, block: 'wall', hh: 20, deco: 'sconce' },
           'd': { floor: null, solid: true, block: 'wall', hh: 20, deco: 'door' },
-          '.': { floor: 'stone' },
+          '.': { floor: 'checker' },
           'c': { floor: 'carpet' },
-          'C': { floor: 'stone', solid: true, deco: 'column' },
-          'a': { floor: 'stone', deco: 'arch' },
-          'S': { floor: 'stone', deco: 'stairs' },
-          'e': { floor: 'stone', solid: true, deco: 'shelf' },
-          'k': { floor: 'stone', deco: 'skull' },
-          'b': { floor: 'stone', deco: 'bones' }
+          'C': { floor: 'checker', solid: true, deco: 'column' },
+          'a': { floor: 'checker', deco: 'arch' },
+          'S': { floor: 'checker', deco: 'stairs' },
+          'e': { floor: 'checker', solid: true, deco: 'shelf' },
+          'h': { floor: 'checker', solid: true, deco: 'chair' },
+          'k': { floor: 'checker', deco: 'skull' },
+          'b': { floor: 'checker', deco: 'bones' }
         }
       },
       playerStart: { x: 8, y: 14 },

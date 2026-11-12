@@ -34,28 +34,34 @@ window.MISTICAS = window.MISTICAS || {};
   M.TILE_HW = 8; // mitad de ancho
   M.TILE_HH = 4; // mitad de alto
 
-  /* Paleta de 16 colores según las capturas reales del canon:
-     negro absoluto, morados estructurales (#7A1FD0 / #8A2BE2),
-     rosa salmón (#FFA8A0) para aristas y marcos, rojo vivo
-     (#E8281E) para la capucha y los corazones, naranjas de vela
-     y hueso. Sin degradados: relleno plano + contorno. */
+  /* Paleta de 16 colores RÉPLICA EXACTA del metraje del podcast
+     (medida sobre los fotogramas a resolución completa):
+     - Suelo del convento: damero de rombos #6D28D9 sobre #1E0B26
+       con junta negra (como en la sala amueblada del video).
+     - Muros: ladrillo carmín (#8E1B12 sombra / #D93025 cara) con
+       mortero negro; familia violeta (#5B21B6) para criptas.
+     - Aristas y marcos: rosa salmón #E8A0A0 (pilastros, sillas,
+       capitel, velas, filetes del HUD).
+     - Acentos hipervibrantes: carmesí #D93025 (puertas, arcos,
+       corazones, capucha, inscripción NEXUS). */
   M.PAL = [
-    '#000000', // 0  NEGRO absoluto (fondo)
-    '#170B26', // 1  violeta casi negro (suelos base)
-    '#2E1248', // 2  violeta oscuro (manchas, sombra)
-    '#5A15A0', // 3  púrpura profundo (contornos gruesos)
-    '#7A1FD0', // 4  morado estructural (líneas de losas)
-    '#8A2BE2', // 5  púrpura saturado (arcos, fantasmas)
-    '#A06BF0', // 6  violeta luminoso (iluminación)
-    '#FFA8A0', // 7  ROSA SALMÓN (aristas iluminadas, marcos HUD)
-    '#E8281E', // 8  ROJO VIVO (capucha, corazones, latín)
-    '#FF4A2A', // 9  rojo-naranja (alertas, fantasma)
+    '#000000', // 0  NEGRO absoluto (fondo, mortero, contornos)
+    '#1E0B26', // 1  VDARK: damero oscuro del suelo, piedra de noche
+    '#2A1038', // 2  DARK: masa violeta (suelos, pelo de la niña)
+    '#6D28D9', // 3  DPURP: damero CLARO violeta + pantalón azul-violeta
+    '#5B21B6', // 4  PURP: púrpura profundo de marcos (arcos, slots)
+    '#8B5CF6', // 5  LPURP: violeta luminoso (damero encendido, llama del aplique)
+    '#A06BF0', // 6  MAG: violeta vivo (frutos, murciélagos, marcador)
+    '#E8A0A0', // 7  LMAG: SALMÓN (aristas, sillas, cara del niño, cera)
+    '#D93025', // 8  CRIM: CARMESÍ (ladrillo claro, capucha, corazones, latín)
+    '#FF4A2A', // 9  LCRIM: rojo alerta (destellos, NEXUS al subir)
     '#FF7A1E', // A  naranja (llama de vela)
     '#FFC44D', // B  naranja claro (llama interior)
     '#E8E0D0', // C  hueso (cráneos, texto principal)
     '#A890B8', // D  gris violáceo (texto secundario, piedra)
-    '#FFF3EA', // E  blanco cálido mínimo (brillo)
-    '#C01818', // F  rojo sangre (contornos de corazón)
+    '#FFF3EA', // E  blanco cálido mínimo (brillo, vestido)
+    '#8E1B12', // F  BLOOD: marrón ladrillo (sombra de capucha, botas,
+    //               contorno de corazones, junta del gótico)
   ];
 
   // Alias semánticos

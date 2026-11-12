@@ -199,17 +199,31 @@
           if (hv > 0.95) this._litEdge(ctx, sx, sy);
           break;
         case 'carpet':
-          // alfombra del abad: masa púrpura con cenefa discreta
-          this._diamond(ctx, sx, sy, M.C.DPURP);
+          // alfombra del canon del video: felpa CARMESÍ con borde
+          // negro a ambos lados (la alfombra roja de la sala);
+          // brillo salmón ocasional como reflejo de las velas
+          this._diamond(ctx, sx, sy, M.C.CRIM);
+          // filete negro NW+SE (borde de la alfombra)
+          ctx.strokeStyle = M.PAL[M.C.BLACK];
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(sx + HW, sy + 0.5);
+          ctx.lineTo(sx + 0.5, sy + HH);
+          ctx.moveTo(sx + TW - 0.5, sy + HH);
+          ctx.lineTo(sx + HW, sy + TH - 0.5);
+          ctx.stroke();
           this._joint(ctx, sx, sy);
           if ((gx * 3 + gy * 5) % 7 === 0) {
             ctx.fillStyle = M.PAL[M.C.LMAG];
-            ctx.fillRect(sx + 7, sy + 3, 2, 1);
+            ctx.fillRect(sx + 6, sy + 3, 4, 1);
           }
-          if ((gx + gy) % 4 === 0) {
-            ctx.fillStyle = M.PAL[M.C.LPURP];
-            ctx.fillRect(sx + 6, sy + 4, 4, 1);
-          }
+          break;
+        case 'checker':
+          // SUELO DAMERO del canon: rombos alternos #6D28D9 /
+          // #1E0B26 con junta negra fina (la sala del video)
+          this._diamond(ctx, sx, sy, ((gx + gy) % 2 === 0) ? M.C.DPURP : M.C.VDARK);
+          this._joint(ctx, sx, sy);
+          if (hv > 0.96) this._litEdge(ctx, sx, sy);
           break;
         default:
           this._diamond(ctx, sx, sy, M.C.VDARK);
@@ -218,17 +232,33 @@
     },
 
     /* Bloque isométrico (muro) de altura hh px.
-       ESTÁNDAR FAMICOM/NES: cara SO en violeta profundo y cara SE
-       media luz más clara (el volumen nace del contraste), sillares
-       en aparejo corrido dibujados como MASA de piedra con JUNTA
-       NEGRA de mortero. Algunos sillares aclaran (deterministas) y
-       muy pocos se encienden con arista salmón. Tapa morada sólida
-       con arista iluminada y silueta negra gruesa. Cero líneas
-       finas flotantes: todo es masa, sombra y luz. */
-    drawWall: function (ctx, sx, sy, hh) {
+       RÉPLICA EXACTA del metraje: dos familias de ladrillo.
+       - 'red' (nave del convento, la sala del video): cara SO en
+         marrón ladrillo #8E1B12, cara SE en carmín #D93025, sillar
+         encendido salmón y tapa carmín con filete salmón completo
+         (el "roof lip" del canon). Mortero negro 1-2px.
+       - 'violet' (criptas y exteriores, familia del pasillo del
+         video): cara SO casi negra, cara SE violeta, tapa púrpura
+         profundo. Todo en aparejo corrido con junta negra. */
+    WALL_FAM: {
+      red: {
+        so: { mass: 15, swap: 0, hot: 8 },   // sombra: marrón, swap negro, brillo carmín
+        se: { mass: 8, swap: 15, hot: 9 },   // luz: carmín, swap marrón, brillo alerta
+        cap: 8, capEdgeAll: true
+      },
+      violet: {
+        so: { mass: 1, swap: 2, hot: 4 },
+        se: { mass: 2, swap: 4, hot: 4 },
+        cap: 4, capEdgeAll: false
+      }
+    },
 
-      function face(poly, ox, oy, mass) {
-        // cara: masa sólida de piedra (clip al paralelogramo)
+    drawWall: function (ctx, sx, sy, hh, family) {
+      var fam = this.WALL_FAM[family] || this.WALL_FAM.violet;
+      var self = this;
+
+      function face(poly, ox, oy, tone) {
+        // cara: masa sólida de ladrillo (clip al paralelogramo)
         ctx.save();
         ctx.beginPath();
         for (var i = 0; i < poly.length; i++) {
@@ -237,11 +267,11 @@
         }
         ctx.closePath();
         ctx.clip();
-        ctx.fillStyle = M.PAL[mass];
+        ctx.fillStyle = M.PAL[tone.mass];
         ctx.fillRect(sx - 2, sy - hh - 6, TW + 4, hh + TH + 8);
 
-        // sillares en aparejo corrido: junta negra sobre la masa,
-        // cuerpos aclarados y aristas encendidas (deterministas)
+        // sillares en aparejo corrido: junta negra de mortero sobre
+        // la masa, cuerpos intercambiados y aristas encendidas
         var top = sy + oy, bot = sy + oy - hh;
         var BH = 5;                  // alto de la hilada
         var BW = 10;                 // ancho del sillar
@@ -255,12 +285,12 @@
             var y1 = Math.max(y0 - BH + 1, bot - 2);
             var hsh = M.hash(Math.floor(sx + jx), Math.floor(y0) + row * 31);
             if (hsh < 0.13) {
-              // sillar aclarado: la piedra recibe algo más de luna
-              ctx.fillStyle = M.PAL[(mass === M.C.DARK) ? M.C.PURP : M.C.DARK];
+              // sillar sombra/luz: el ladrillo contrario
+              ctx.fillStyle = M.PAL[tone.swap];
               ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
             } else if (hsh > 0.93) {
               // sillar encendido: cuerpo vivo y arista salmón
-              ctx.fillStyle = M.PAL[M.C.PURP];
+              ctx.fillStyle = M.PAL[tone.hot];
               ctx.fillRect(x0, y1, x1 - x0, y0 - y1);
               ctx.fillStyle = M.PAL[M.C.LMAG];
               ctx.fillRect(x0, y1, Math.min(4, x1 - x0), 1);
@@ -274,13 +304,13 @@
         ctx.restore();
       }
 
-      // cara izquierda (SO): violeta profundo — cara derecha (SE):
-      // media luz; el contraste entre ambas da el volumen Famicom
-      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH, M.C.VDARK);
-      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH, M.C.DARK);
+      // cara izquierda (SO): sombra — cara derecha (SE): luz;
+      // el contraste entre ambas da el volumen Famicom del canon
+      face([[0, HH], [HW, TH], [HW, TH - hh], [0, HH - hh]], 0, HH, fam.so);
+      face([[HW, TH], [TW, HH], [TW, HH - hh], [HW, TH - hh]], HW, TH, fam.se);
 
-      // tapa violeta plana
-      ctx.fillStyle = M.PAL[M.C.PURP];
+      // tapa plana (canon: "roof lip")
+      ctx.fillStyle = M.PAL[fam.cap];
       ctx.beginPath();
       ctx.moveTo(sx + HW, sy - hh);
       ctx.lineTo(sx + TW, sy + HH - hh);
@@ -298,11 +328,16 @@
       ctx.lineTo(sx + TW, sy + HH);
       ctx.lineTo(sx + HW, sy + TH);
       ctx.closePath(); ctx.stroke();
-      // arista SUPERIOR iluminada en salmón (canon: borde magenta)
+      // filete del borde superior: en la familia roja, TODO el
+      // contorno de la tapa se enciende en salmón (roof lip del
+      // canon); en violeta solo la arista superior
       ctx.strokeStyle = M.PAL[M.C.LMAG];
       ctx.beginPath();
       ctx.moveTo(sx + HW + 1, sy - hh + 1);
       ctx.lineTo(sx + 1, sy + HH - hh + 1);
+      if (fam.capEdgeAll) {
+        ctx.lineTo(sx + 1, sy + HH - hh + 1);
+      }
       ctx.lineTo(sx + HW, sy + TH - hh + 1);
       ctx.lineTo(sx + TW - 1, sy + HH - hh + 1);
       ctx.lineTo(sx + HW + 1, sy - hh + 1);
@@ -315,7 +350,9 @@
        del mapa (nunca una banda brillante que compita con la piedra). */
     drawFloorEdge: function (ctx, sx, sy, mask) {
       if (!mask) return;
-      ctx.strokeStyle = M.PAL[M.C.DPURP];
+      // canon del video: la junta junto al muro es NEGRA (grout),
+      // nunca una banda de color que compita con la piedra
+      ctx.strokeStyle = M.PAL[M.C.BLACK];
       ctx.lineWidth = 1;
       ctx.beginPath();
       if (mask & 1) { ctx.moveTo(sx + HW, sy + 0.5); ctx.lineTo(sx + 0.5, sy + HH); }
@@ -499,7 +536,9 @@
       // 6) muros en orden pintor; los decos de muro (puertas,
       //    portones) van SIEMPRE en una segunda pasada encima:
       //    están MONTADOS sobre las caras frontales de los muros y
-      //    ningún sillar vecino debe taparlos
+      //    ningún sillar vecino debe taparlos. La familia de
+      //    ladrillo la fija cada sala ('red' | 'violet')
+      var fam = (map.def && map.def.family) || 'violet';
       var items = [];
       for (gy = 0; gy < map.h; gy++) {
         for (gx = 0; gx < map.w; gx++) {
@@ -508,7 +547,7 @@
             (function (gx2, gy2, hh) {
               items.push({ d: gx2 + gy2, fn: function () {
                 var s2 = self.worldToScreen(gx2, gy2);
-                self.drawWall(g, s2.x, s2.y, hh);
+                self.drawWall(g, s2.x, s2.y, hh, fam);
               }});
             })(gx, gy, t.hh || 13);
           }

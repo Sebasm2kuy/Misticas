@@ -100,10 +100,10 @@
 
       var ty = by + 6;
       if (d.who) {
-        F.draw(ctx, d.who, bx + 8, ty, d.latin ? M.C.LCRIM : M.C.LMAG, { scale: 1 });
+        F.draw(ctx, d.who, bx + 8, ty, d.latin ? M.C.CRIM : M.C.LMAG, { scale: 1 });
         ty += 10;
       }
-      var color = d.latin ? M.C.LCRIM : M.C.BONE;
+      var color = d.latin ? M.C.CRIM : M.C.BONE;
       var jitter = d.latin ? 1 : 0;
       var from = Math.max(0, Math.min(d.li - (shown - 1), d.lines.length - shown));
       for (var i = from; i <= d.li; i++) {
@@ -203,12 +203,11 @@
     drawHUD: function (ctx, game, t) {
       var W = M.SCREEN_W;
       var y0 = M.SCREEN_H - M.HUD_H;
+      // banda negra pura del canon ("bottom strip, black background")
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(0, y0, W, M.HUD_H);
-      ctx.fillStyle = M.PAL[M.C.PURP];
-      ctx.fillRect(0, y0, W, 1);
       ctx.fillStyle = M.PAL[M.C.VDARK];
-      ctx.fillRect(0, y0 + 1, W, 1);
+      ctx.fillRect(0, y0, W, 1);
 
       var Spr = M.Spr, i;
 
@@ -247,16 +246,20 @@
       // slot 3: vacío (0)
       F.draw(ctx, '0', s3 + 7, sY + sS + 3, M.C.BONE2);
 
-      // -- marco central NEXUS CUM NUMINE (doble borde, centrado) --
+      // -- marco central NEXUS CUM NUMINE: borde SALMÓN del canon
+      //    ("banner with salmon border frame and dark fill") +
+      //    filete carmesí interior y muescas blancas
       var bw = 160, bx = Math.round(W / 2 - bw / 2), by = y0 + 2, bh = 32;
-      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.fillStyle = M.PAL[M.C.VDARK];
+      ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+      ctx.strokeStyle = M.PAL[M.C.LMAG];
       ctx.lineWidth = 2;
       ctx.strokeRect(bx + 1, by + 1, bw - 2, bh - 2);
       ctx.strokeStyle = M.PAL[M.C.CRIM];
       ctx.lineWidth = 1;
       ctx.strokeRect(bx + 3.5, by + 3.5, bw - 7, bh - 7);
-      // muescas de esquina (salmón)
-      ctx.fillStyle = M.PAL[M.C.LMAG];
+      // muescas de esquina blancas
+      ctx.fillStyle = M.PAL[M.C.WHITE];
       ctx.fillRect(bx - 1, by + 1, 2, 2); ctx.fillRect(bx + bw - 1, by + 1, 2, 2);
       ctx.fillRect(bx - 1, by + bh - 3, 2, 2); ctx.fillRect(bx + bw - 1, by + bh - 3, 2, 2);
 
@@ -264,7 +267,8 @@
       var hot = game.nexusFlag > 0;
       this._gothicCentered(ctx, 'NEXUS CUM NUMINE', bx + bw / 2, by + 8, hot ? M.C.LCRIM : M.C.CRIM);
 
-      // barra de progreso continua (relleno salmón, borde morado)
+      // barra de progreso del canon: relleno salmón con borde ROSA
+      //    ("progress bar with pink border and light-pink fill")
       var barW = bw - 24, barX = bx + 12, barY = by + 23;
       ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(barX, barY, barW, 5);
@@ -272,15 +276,15 @@
       ctx.fillStyle = M.PAL[M.C.LMAG];
       ctx.fillRect(barX, barY, fillW, 5);
       if (game.nexus > 0 && game.nexus < 100) {
-        ctx.fillStyle = M.PAL[M.C.BONE2];
+        ctx.fillStyle = M.PAL[M.C.WHITE];
         ctx.fillRect(barX + fillW - 1, barY, 1, 5);
       }
-      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.strokeStyle = M.PAL[M.C.LMAG];
       ctx.lineWidth = 1;
       ctx.strokeRect(barX - 0.5, barY - 0.5, barW + 1, 6);
       // marcas sutiles cada 20%
       for (i = 1; i < 5; i++) {
-        ctx.fillStyle = M.PAL[M.C.DPURP];
+        ctx.fillStyle = M.PAL[M.C.PURP];
         ctx.fillRect(barX + Math.round(barW * i / 5), barY + 4, 1, 1);
       }
 
@@ -292,12 +296,13 @@
       }
     },
 
-    // marco de slot morado con esquina recortada
+    // marco de slot del canon: borde violeta #6D28D9
+    //    ("three square item slots with thin purple outlines")
     _slotFrame: function (ctx, x, y, s) {
-      ctx.strokeStyle = M.PAL[M.C.PURP];
+      ctx.strokeStyle = M.PAL[M.C.DPURP];
       ctx.lineWidth = 1;
       ctx.strokeRect(x + 0.5, y + 0.5, s, s);
-      ctx.fillStyle = M.PAL[M.C.DPURP];
+      ctx.fillStyle = M.PAL[M.C.PURP];
       ctx.fillRect(x, y, 3, 1);
       ctx.fillRect(x, y, 1, 3);
       ctx.fillRect(x + s - 3, y + s - 1, 3, 1);
@@ -344,7 +349,7 @@
       for (var i = 0; i < text.length; i++) {
         var ch = text.charAt(i);
         if (ch !== ' ') {
-          F.draw(ctx, ch, Math.round(x), Math.round(y), M.C.LCRIM, { jitter: 1 });
+          F.draw(ctx, ch, Math.round(x), Math.round(y), M.C.CRIM, { jitter: 1 });
         }
         x += 6; y += 1;
       }

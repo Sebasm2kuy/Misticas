@@ -252,6 +252,14 @@
           Spr.draw(ctx, Spr.S.shelf, sx - 8, sy - 18);
         }});
         break;
+      case 'chair':
+        // silla del canon de la sala amueblada: panel salmón,
+        // marco marrón-ladrillo, patas finas. Bloquea el paso.
+        this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy) {
+          Spr.draw(ctx, Spr.S.chair, sx - 7, sy - 17);
+        }});
+        M.Iso.tileAt(this.map, gx, gy).solid = true;
+        break;
       // cráneo y huesos: planos sobre el suelo, HORNEADOS
       case 'skull':
         this._bakeFlat.push({ gx: gx, gy: gy, draw: function (g, sx, sy) {
@@ -264,11 +272,12 @@
         }});
         break;
       case 'sconce':
-        // aplique de vela sobre el muro (llama viva: dinámico)
+        // aplique de vela sobre el muro: llama VIOLETA-AZUL del canon
+        // ("purple/blue flame tip"), cera salmón, nunca un glow radial
         this.decor.push({ gx: gx, gy: gy, draw: function (ctx, sx, sy, t) {
           var fl = Math.floor(t * 6) % 2 === 0;
           Spr.draw(ctx, Spr.S.sconce, sx - 2, sy - 17);
-          if (fl) { ctx.fillStyle = M.PAL[M.C.LORAN]; ctx.fillRect(Math.round(sx + 1), Math.round(sy - 12), 1, 1); }
+          if (fl) { ctx.fillStyle = M.PAL[M.C.LPURP]; ctx.fillRect(Math.round(sx + 1), Math.round(sy - 12), 1, 1); }
         }});
         break;
     }
