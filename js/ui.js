@@ -88,11 +88,12 @@
       // desplaza cuando el texto partido ocupa más líneas
       var shown = Math.min(3, d.lines.length);
       var bh = 12 + (d.who ? 10 : 0) + shown * 10 + 6;
-      var bx = 4, by = M.VIEW_H - bh - 4, bw = W - 8;
-      ctx.globalAlpha = 0.94;
-      ctx.fillStyle = M.PAL[M.C.VDARK];
+      var bx = 4, by = M.VIEW_H - bh, bw = W - 8;
+      // caja empotrada a ras del suelo del HUD: sólida, sin hueco
+      ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(bx, by, bw, bh);
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = M.PAL[M.C.VDARK];
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
       ctx.strokeStyle = M.PAL[d.latin ? M.C.CRIM : M.C.PURP];
       ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
       ctx.fillStyle = M.PAL[M.C.BLACK];
@@ -173,12 +174,12 @@
       var lines = this._wrap(h.text, wrapN);
       if (lines.length > 2) lines = lines.slice(0, 2);
       var bh = 12 + lines.length * 10 + 4;
-      var bx = 4, by = M.VIEW_H - bh - 4, bw = W - 8;
-      // mismo marco que la caja de diálogo: bloque único, cerrado
-      ctx.globalAlpha = 0.92;
-      ctx.fillStyle = M.PAL[M.C.VDARK];
+      var bx = 4, by = M.VIEW_H - bh, bw = W - 8;
+      // MISMA caja empotrada que el diálogo: sin hueco, opaca
+      ctx.fillStyle = M.PAL[M.C.BLACK];
       ctx.fillRect(bx, by, bw, bh);
-      ctx.globalAlpha = 1;
+      ctx.fillStyle = M.PAL[M.C.VDARK];
+      ctx.fillRect(bx + 2, by + 2, bw - 4, bh - 4);
       ctx.strokeStyle = M.PAL[M.C.DPURP];
       ctx.strokeRect(bx + 0.5, by + 0.5, bw - 1, bh - 1);
       ctx.fillStyle = M.PAL[M.C.BLACK];
