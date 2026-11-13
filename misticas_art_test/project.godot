@@ -1,0 +1,36 @@
+; Engine configuration file.
+; Místicas — Art Test (Godot 4)
+; Configuración de render para fondos HD/4K pintados a mano:
+;   * Viewport a 1920x1080; los fondos son texturas 4K a escala 0.5 (nitidez extra
+;     y margen para zooms cinematográficos sin pérdida).
+;   * Stretch "canvas_items" + aspect "keep": composición protegida (letterbox),
+;     como los clásicos. El filtrado es LINEAR (arte pintado, no pixel art).
+;   * Renderer "gl_compatibility": 2D de primera clase y exportable a todo
+;     (escritorio, web, móviles) con las luces 2D funcionando.
+
+config_version=5
+
+[application]
+
+config/name="Misticas Art Test"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.4")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/core/game_state.gd"
+
+[display]
+
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=1
+environment/defaults/default_clear_color=Color(0.05, 0.04, 0.08, 1)

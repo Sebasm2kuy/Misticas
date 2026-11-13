@@ -1,0 +1,4 @@
+# Godot: carpeta de caché generada
+.godot/
+# Build web exportada (se copia a web/ del repo principal)
+build_web/

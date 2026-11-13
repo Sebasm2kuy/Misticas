@@ -1,6 +1,6 @@
 # Despliegue automático a GitHub Pages en cada push a main.
-# El juego es 100% estático (HTML/CSS/JS sin build), así que solo
-# se empaqueta la raíz del repo y se publica.
+# La carpeta web/ contiene la build exportada de Godot (estática),
+# así que solo se empaqueta y se publica.
 name: Deploy MISTICAS to GitHub Pages
 
 on:
@@ -33,7 +33,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: web
 
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
